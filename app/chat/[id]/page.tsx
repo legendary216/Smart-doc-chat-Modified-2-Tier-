@@ -3,14 +3,15 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-
 import { Send, ArrowLeft, MoreVertical, Paperclip, Bot, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import Link from 'next/link'
-import { searchContext } from '@/lib/search' // <--- Import our search logic
+import { searchContext } from '@/lib/search'
+import { generateAnswer } from '@/app/actions' // <--- Import Server Action
 
+// Define Message Type locally
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -26,14 +27,12 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [title, setTitle] = useState('Chat')
   
-  // Auto-scroll to bottom ref
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // 1. Fetch Chat Metadata on Load
   useEffect(() => {
     const fetchChat = async () => {
       const { data, error } = await supabase
-        .from('chats') // Note: lowercase table name
+        .from('chats')
         .select('file_name')
         .eq('id', chatId)
         .single()
@@ -44,50 +43,48 @@ export default function ChatPage() {
     fetchChat()
   }, [chatId])
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
 
-  // 2. Handle Sending a Message
-  const handleSubmit = async (e: React.SyntheticEvent) => {
+  // --- HANDLER ---
+  // We use React.FormEvent<HTMLFormElement> for strict React 19 compliance
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
     const userQuestion = input;
     
-    // A. Optimistic UI (Show user message immediately)
+    // 1. Optimistic UI
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: userQuestion }
     setMessages(prev => [...prev, userMsg])
     setInput('')
     setIsLoading(true)
 
     try {
-        // B. Perform Retrieval (The "R" in RAG)
-        console.log("Searching for context...")
-        // This runs the embedding + vector search
-        const context = await searchContext(userQuestion, chatId)
-        console.log("Found chunks:", context)
-
-        // C. Construct the Response (Temporary: Just showing what we found)
-        // In the next phase, we will send this to Gemini to "summarize"
-        let aiResponseContent = ""
+        // 2. Retrieve Context (Client-Side)
+       console.log("Searching...")
+        const contextResults = await searchContext(userQuestion, chatId)
         
-        if (context.length > 0) {
-            aiResponseContent = "**I found this relevant information:**\n\n" + 
-            context.map(c => `> *Page ${c.page}*: "${c.content.substring(0, 150)}..."`).join('\n\n')
-        } else {
-            aiResponseContent = "I searched the document, but couldn't find any relevant information."
-        }
+        // --- CRITICAL FIX: Include Page Numbers in the context sent to AI ---
+        const contextText = contextResults.map(c => `
+        SOURCE (Page ${c.page}):
+        ${c.content}
+        `).join('\n\n---\n\n');
 
-        const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: aiResponseContent }
+        // 3. Generate Answer
+        console.log("Generating answer...")
+        const answer = await generateAnswer(contextText, userQuestion)
+
+        // 4. Show Result
+        const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: answer }
         setMessages(prev => [...prev, aiMsg])
 
     } catch (err) {
         console.error(err)
-        const errorMsg: Message = { id: Date.now().toString(), role: 'assistant', content: "Sorry, I encountered an error while searching." }
+        const errorMsg: Message = { id: Date.now().toString(), role: 'assistant', content: "Sorry, something went wrong." }
         setMessages(prev => [...prev, errorMsg])
     } finally {
         setIsLoading(false)
@@ -96,7 +93,6 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* --- SIDEBAR --- */}
       <div className="w-64 bg-slate-900 text-slate-300 p-4 flex-col hidden md:flex">
         <div className="mb-6">
             <Link href="/" className="flex items-center gap-2 hover:text-white transition-colors">
@@ -113,9 +109,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* --- MAIN CHAT AREA --- */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
         <header className="h-16 border-b bg-white flex items-center justify-between px-6 shadow-sm">
             <h1 className="font-semibold text-slate-800 flex items-center gap-2">
                 <span className="md:hidden"><Link href="/"><ArrowLeft className="h-4 w-4"/></Link></span>
@@ -124,14 +118,12 @@ export default function ChatPage() {
             <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
         </header>
 
-        {/* Messages List */}
         <ScrollArea className="flex-1 p-4 bg-slate-50">
             <div className="max-w-3xl mx-auto space-y-6 pb-4">
                 {messages.length === 0 && (
                     <div className="text-center text-slate-400 mt-20">
                         <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <h3 className="text-lg font-medium text-slate-600">Ask me anything about this document!</h3>
-                        <p className="text-sm">I use local AI to find the answer.</p>
                     </div>
                 )}
                 
@@ -142,19 +134,12 @@ export default function ChatPage() {
                                 <Bot className="h-5 w-5 text-blue-600" />
                             </div>
                         )}
-                        
                         <div className={`
                             max-w-[80%] rounded-2xl p-4 text-sm whitespace-pre-wrap
                             ${m.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border shadow-sm text-slate-800'}
                         `}>
                             {m.content}
                         </div>
-
-                        {m.role === 'user' && (
-                            <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                                <User className="h-5 w-5 text-slate-600" />
-                            </div>
-                        )}
                     </div>
                 ))}
 
@@ -172,7 +157,6 @@ export default function ChatPage() {
             </div>
         </ScrollArea>
 
-        {/* Input Area */}
         <div className="p-4 bg-white border-t">
             <form onSubmit={handleSubmit} className="max-w-3xl mx-auto flex gap-2">
                 <Input 

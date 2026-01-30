@@ -15,7 +15,7 @@ export async function searchContext(query: string, chatId: string): Promise<Sear
     // 2. Call Supabase
     const { data, error } = await supabase.rpc('match_documents', {
       query_embedding: queryVector,
-      match_threshold: 0.2, // Lowered threshold to ensure we get results
+      match_threshold: 0.1, // Lowered threshold to ensure we get results
       match_count: 5,
       filter_chat_id: chatId
     })
