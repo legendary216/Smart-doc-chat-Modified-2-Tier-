@@ -32,7 +32,7 @@ export async function searchContext(query: string, chatId: string): Promise<Sear
     return data.map((item: any) => ({
       content: item.content,
       // We check multiple possible casing styles to catch the error
-      page: item.page_number || item.pageNumber || item.page || 0, 
+      page: item.metadata.pageNumber, 
       similarity: item.similarity
     }))
 

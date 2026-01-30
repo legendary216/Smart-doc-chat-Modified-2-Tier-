@@ -67,6 +67,7 @@ export default function ChatPage() {
         // 2. Retrieve Context (Client-Side)
        console.log("Searching...")
         const contextResults = await searchContext(userQuestion, chatId)
+        console.log("contextResults : ",contextResults);
         
         // --- CRITICAL FIX: Include Page Numbers in the context sent to AI ---
         const contextText = contextResults.map(c => `
