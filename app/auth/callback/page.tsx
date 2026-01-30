@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Loader2 } from 'lucide-react'
+import { FileUploader } from "@/components/chat/file-uploader"
 
 export default function AuthCallbackPage() {
   const router = useRouter()
