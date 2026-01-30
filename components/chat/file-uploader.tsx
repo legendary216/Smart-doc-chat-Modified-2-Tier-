@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import { Upload, FileText, X, FileType, AlertCircle, Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { parseFile } from '@/lib/pdf-parser' // <--- Import logic
-
+import { generateEmbedding } from '@/lib/embeddings'
 export function FileUploader() {
   const [file, setFile] = useState<File | null>(null)
   const [isProcessing, setIsProcessing] = useState(false) // <--- New State
@@ -25,6 +25,17 @@ export function FileUploader() {
         console.log(`Extracted ${pages.length} pages.`)
         // (In the next step, we will send these 'pages' to the AI embedding engine)
 
+
+        // --- TEST LOGIC START ---
+        if (pages.length > 0) {
+            console.log("Step 2: Testing Embedding on Page 1...")
+            // We just test the first page to save time
+            const vector = await generateEmbedding(pages[0].content)
+            
+            console.log("SUCCESS! Generated Vector:", vector)
+            console.log("Vector Length:", vector.length) // Should be 384
+        }
+        // --- TEST LOGIC END ---
         setIsProcessing(false)
       }
     } catch (error) {

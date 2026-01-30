@@ -1,10 +1,4 @@
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
-// We import the specific type for TypeScript safety
-import { TextItem } from 'pdfjs-dist/types/src/display/api';
-
-// 1. Configure the Worker
-// We use a CDN to avoid complex Next.js Webpack configuration for the worker file.
-GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${require('pdfjs-dist/package.json').version}/build/pdf.worker.min.mjs`;
+// lib/pdf-parser.ts
 
 export type PageContent = {
   page: number;
@@ -16,28 +10,36 @@ export async function parseFile(file: File): Promise<PageContent[]> {
     // --- STRATEGY A: TEXT FILES ---
     if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
       const text = await file.text();
-      // For text files, we treat the whole thing as "Page 1"
       return [{ page: 1, content: text }];
     }
 
     // --- STRATEGY B: PDF FILES ---
     if (file.type === 'application/pdf') {
+      // 1. Dynamic Import (Fixes "DOMMatrix is not defined")
+      // We only import PDF.js here, ensuring it ONLY runs in the browser.
+      const pdfjs = await import('pdfjs-dist');
+      const { getDocument, GlobalWorkerOptions } = pdfjs;
+
+      // 2. Configure Worker
+      // We use the version exported by the library itself to ensure compatibility
+      GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
       const arrayBuffer = await file.arrayBuffer();
       
-      // 2. Load the Document
+      // 3. Load the Document
       const loadingTask = getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
       
       const extractedText: PageContent[] = [];
 
-      // 3. The "Page-Aware" Loop
+      // 4. The "Page-Aware" Loop
       for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i); //
+        const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         
         // Extract raw strings from the text items
         const pageText = textContent.items
-          .map((item) => (item as TextItem).str)
+          .map((item: any) => item.str)
           .join(' ');
 
         if (pageText.trim().length > 0) {
@@ -55,6 +57,6 @@ export async function parseFile(file: File): Promise<PageContent[]> {
 
   } catch (error) {
     console.error("Error parsing file:", error);
-    throw error; // Re-throw so the UI knows it failed
+    throw error;
   }
 }
