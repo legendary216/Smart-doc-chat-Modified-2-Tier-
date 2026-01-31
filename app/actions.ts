@@ -3,26 +3,38 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from '@/lib/supabase'
 import { generateEmbedding } from '@/lib/embeddings'
+import { createClient } from '@supabase/supabase-js'
+
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
 
 export async function searchContext(query: string, chatId: string) {
   try {
+     //console.log("Searching...");
+     const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
     // This now runs on the server, so the browser stays fast
     const queryVector = await generateEmbedding(query)
-
-    const { data, error } = await supabase.rpc('match_documents', {
+    //console.log("query : ",queryVector);
+    
+    const { data, error } = await supabaseAdmin.rpc('match_documents', {
       query_embedding: queryVector,
       match_threshold: 0.1, 
       match_count: 5,       
       filter_chat_id: chatId
     })
 
+    console.log("fetched !");
+    
+    
     if (error) {
       console.error("Supabase RPC Error:", error)
       return []
     }
-
+    
+    console.log("data : ",data);
     return data.map((item: any) => ({
       content: item.content,
       page: item.metadata?.pageNumber ?? 0, 
@@ -38,7 +50,7 @@ export async function searchContext(query: string, chatId: string) {
 
 export async function generateAnswer(context: string, question: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
   const prompt = `
       You are an intelligent document assistant. Your task is to answer the user's question based strictly on the provided context.

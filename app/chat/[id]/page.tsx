@@ -146,6 +146,7 @@ export default function ChatPage() {
 
       // C. RAG Pipeline
       console.log("Searching...");
+     
       const contextResults = await searchContext(userQuestion, chatId);
 
       const contextText = contextResults
@@ -157,7 +158,8 @@ export default function ChatPage() {
 `,
         )
         .join("\n\n");
-
+        console.log("context : ",contextResults);
+        
       console.log("Generating answer...");
       const answer = await generateAnswer(contextText, userQuestion);
 
