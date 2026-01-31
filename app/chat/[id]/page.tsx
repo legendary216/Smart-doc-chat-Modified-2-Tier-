@@ -4,7 +4,7 @@ import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Send, Bot, Menu, ArrowLeft,Settings2 } from "lucide-react";
+import { Send, Bot, Menu, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -106,7 +106,7 @@ export default function ChatPage() {
   }, [messages]);
 
   // 7. Submit Handler
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSend = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 

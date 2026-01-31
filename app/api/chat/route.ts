@@ -30,7 +30,18 @@ export async function POST(req: Request) {
   // 5. Generate Stream
   const result = streamText({
     model: google('gemini-2.5-flash-lite'),
-    system: `You are a helpful assistant. Use this context to answer: \n\n${contextText}`,
+    system: `
+      You are an intelligent document assistant. Your task is to answer the user's question based strictly on the provided context.
+
+      STRICT RULES:
+      1. Answer ONLY using the information from the CONTEXT block below.
+      2. If the answer is not in the context, state "I cannot find this information in the document."
+      3. CITATION RULE: You MUST cite the source page for every fact you mention. Use the format [Page X] at the end of the sentence.
+      4. Do not make up information.
+
+      CONTEXT:
+      ${contextText}
+    `,
     // Use the converter from your 'Stream Protocols' doc
     messages: await convertToModelMessages(messages),
     
