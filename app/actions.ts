@@ -1,8 +1,40 @@
 'use server'
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { supabase } from '@/lib/supabase'
+import { generateEmbedding } from '@/lib/embeddings'
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
+
+export async function searchContext(query: string, chatId: string) {
+  try {
+    // This now runs on the server, so the browser stays fast
+    const queryVector = await generateEmbedding(query)
+
+    const { data, error } = await supabase.rpc('match_documents', {
+      query_embedding: queryVector,
+      match_threshold: 0.1, 
+      match_count: 5,       
+      filter_chat_id: chatId
+    })
+
+    if (error) {
+      console.error("Supabase RPC Error:", error)
+      return []
+    }
+
+    return data.map((item: any) => ({
+      content: item.content,
+      page: item.metadata?.pageNumber ?? 0, 
+      similarity: item.similarity
+    }))
+
+  } catch (error) {
+    console.error("Search failed:", error)
+    return []
+  }
+}
+
 
 export async function generateAnswer(context: string, question: string) {
   try {

@@ -3,15 +3,15 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Send, ArrowLeft, MoreVertical, Paperclip, Bot, User } from 'lucide-react'
+import { Send, ArrowLeft, MoreVertical, Paperclip, Bot, User,Menu  } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import Link from 'next/link'
-import { searchContext } from '@/lib/search'
-import { generateAnswer } from '@/app/actions'
-import { ChatSidebar } from '@/components/chat/chat-sidebar'
+import { searchContext, generateAnswer } from '@/app/actions'
+//import { ChatSidebar } from '@/components/chat/chat-sidebar'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSidebar } from '@/components/app-shell'
 
 interface Message {
   id: string;
@@ -22,7 +22,7 @@ interface Message {
 export default function ChatPage() {
   const params = useParams()
   const chatId = params.id as string
-  
+  const { toggle } = useSidebar()
   // --- CHANGED: Added QueryClient to manipulate cache ---
   const queryClient = useQueryClient()
 
@@ -128,11 +128,11 @@ export default function ChatPage() {
         console.log("Searching...")
         const contextResults = await searchContext(userQuestion, chatId)
         
-        const contextText = contextResults.map(c => `
-        START PAGE ${c.page} BLOCK:
-        ${c.content}
-        END PAGE ${c.page} BLOCK
-        `).join('\n\n');
+        const contextText = contextResults.map((c: any) => `
+  START PAGE ${c.page} BLOCK:
+  ${c.content}
+  END PAGE ${c.page} BLOCK
+`).join('\n\n');
 
         console.log("Generating answer...")
         const answer = await generateAnswer(contextText, userQuestion)
@@ -169,21 +169,19 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    
       
-      {/* Sidebar */}
-      <div className="hidden md:flex">
-         <ChatSidebar currentChatId={chatId} />
-      </div>
-
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+     
+      <>
         <header className="h-16 border-b bg-white flex items-center justify-between px-6 shadow-sm">
             <h1 className="font-semibold text-slate-800 flex items-center gap-2">
                 <span className="md:hidden"><Link href="/"><ArrowLeft className="h-4 w-4"/></Link></span>
-                {title}
+                {title} 
             </h1>
-            <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={toggle}>
+                <Menu className="h-4 w-4" /> {/* Use Menu icon instead of MoreVertical if you prefer */}
+            </Button>
+            {/* <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button> */}
         </header>
 
         <ScrollArea className="flex-1 p-4 bg-slate-50">
@@ -264,7 +262,7 @@ export default function ChatPage() {
                 </Button>
             </form>
         </div>
-      </div>
-    </div>
+      </>
+   
   )
 }

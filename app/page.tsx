@@ -23,11 +23,7 @@ export default function Home() {
 
 return (
     <div className="flex h-screen bg-slate-50">
-      {/* Sidebar on Home Page too */}
-      <div className="hidden md:flex">
-        <ChatSidebar />
-      </div>
-
+     
       <main className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="max-w-2xl w-full text-center space-y-8">
           <div className="space-y-2">

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 // --- NEW IMPORTS ---
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useParams } from 'next/navigation'
 
 interface Chat {
   id: string
@@ -14,11 +15,12 @@ interface Chat {
   created_at: string
 }
 
-export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
+export function ChatSidebar() {
   const router = useRouter()
   // --- NEW: Query Client for cache manipulation ---
   const queryClient = useQueryClient()
-
+const params = useParams()
+const currentChatId = params.id
   // --- CHANGED: Replaced useState/useEffect with useQuery ---
   const { data: chats = [], isLoading, isError } = useQuery({
     queryKey: ['chats'], // This key matches the one we used in handleDelete
@@ -127,7 +129,7 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
               >
                 <div className="flex items-center gap-2 truncate">
                    <FileText className="h-4 w-4 shrink-0 opacity-70" />
-                   <span className="truncate max-w-[140px]">{chat.file_name}</span>
+                   <span className="truncate max-w-140px">{chat.file_name}</span>
                 </div>
 
                 <button 
