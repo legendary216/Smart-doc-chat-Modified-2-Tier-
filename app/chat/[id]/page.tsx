@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { searchContext } from '@/lib/search'
 import { generateAnswer } from '@/app/actions'
 import { ChatSidebar } from '@/components/chat/chat-sidebar'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 interface Message {
   id: string;
@@ -22,30 +23,42 @@ export default function ChatPage() {
   const params = useParams()
   const chatId = params.id as string
   
-  const [messages, setMessages] = useState<Message[]>([])
+  // --- CHANGED: Added QueryClient to manipulate cache ---
+  const queryClient = useQueryClient()
+
+  // --- CHANGED: "messages" is now fetched via React Query, not local state ---
+  // const [messages, setMessages] = useState<Message[]>([]) 
+  // const [isHistoryLoading, setIsHistoryLoading] = useState(true)
+
   const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false) // This is for AI "Thinking...", not history loading
   const [title, setTitle] = useState('Chat')
   
   const scrollRef = useRef<HTMLDivElement>(null)
+  
+  // NOTE: unused state in your snippet, but I kept it as requested to change nothing else
+  const [isGenerating, setIsGenerating] = useState(false) 
 
-  // 1. Fetch Chat Details & Message History
+  // 1. Fetch Chat Details (Title) - Kept simple in useEffect
   useEffect(() => {
-    const fetchChatData = async () => {
-      try {
-        // A. Fetch Chat Info
-        const { data: chatData, error: chatError } = await supabase
-          .from('chats')
-          .select('file_name')
-          .eq('id', chatId)
-          .single()
-        
-        if (chatError) throw chatError
-        if (chatData) setTitle(chatData.file_name)
+    const fetchTitle = async () => {
+       const { data } = await supabase.from('chats').select('file_name').eq('id', chatId).single()
+       if (data) setTitle(data.file_name)
+    }
+    fetchTitle()
+  }, [chatId])
 
-        // B. Fetch Message History
+
+  // --- CHANGED: Replaced the Message Fetching useEffect with useQuery ---
+  /* useEffect(() => {
+    const fetchChatData = async () => {
+        setIsHistoryLoading(true) 
+        setMessages([]) 
+
+      try {
+        // ... old fetch logic ...
         const { data: msgData, error: msgError } = await supabase
-          .from('messages') // Accessing the table we created
+          .from('messages')
           .select('*')
           .eq('chat_id', chatId)
           .order('created_at', { ascending: true })
@@ -55,12 +68,29 @@ export default function ChatPage() {
 
       } catch (error) {
         console.error("Error loading chat history:", error)
-        // Optional: Set a UI error state here if you want to show a toast
+      } finally {
+        setIsHistoryLoading(false) 
       }
     }
-
     fetchChatData()
-  }, [chatId])
+  }, [chatId]) 
+  */
+
+  // --- NEW: React Query for Messages (Handles Caching & Loading) ---
+  const { data: messages = [], isLoading: isHistoryLoading, isError } = useQuery({
+    queryKey: ['messages', chatId], // Unique key for this specific chat
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true })
+      
+      if (error) throw error
+      return data as Message[]
+    }
+  })
+
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -77,13 +107,17 @@ export default function ChatPage() {
     setInput('')
     setIsLoading(true)
 
-    // A. Optimistic UI update (Show user message immediately)
+    // A. Optimistic UI update
     const userMsgOptimistic: Message = { id: Date.now().toString(), role: 'user', content: userQuestion }
-    setMessages(prev => [...prev, userMsgOptimistic])
+    
+    // --- CHANGED: Update Cache instead of State ---
+    // setMessages(prev => [...prev, userMsgOptimistic])
+    queryClient.setQueryData(['messages', chatId], (old: Message[] = []) => {
+        return [...old, userMsgOptimistic]
+    })
 
     try {
         // B. Save User Message to DB
-        // We await this to ensure data consistency, or you can fire-and-forget if speed is priority
         const { error: userMsgError } = await supabase
             .from('messages')
             .insert({ chat_id: chatId, role: 'user', content: userQuestion })
@@ -105,7 +139,12 @@ export default function ChatPage() {
 
         // D. Update UI with AI Answer
         const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: answer }
-        setMessages(prev => [...prev, aiMsg])
+        
+        // --- CHANGED: Update Cache instead of State ---
+        // setMessages(prev => [...prev, aiMsg])
+        queryClient.setQueryData(['messages', chatId], (old: Message[] = []) => {
+            return [...old, aiMsg]
+        })
 
         // E. Save AI Message to DB
         const { error: aiMsgError } = await supabase
@@ -116,9 +155,14 @@ export default function ChatPage() {
 
     } catch (err) {
         console.error("Chat Error:", err)
-        // Show error in the chat bubble so the user knows something failed
+        
         const errorMsg: Message = { id: Date.now().toString(), role: 'assistant', content: "Sorry, I encountered an error. Please try again." }
-        setMessages(prev => [...prev, errorMsg])
+        
+        // --- CHANGED: Update Cache for Error Message ---
+        // setMessages(prev => [...prev, errorMsg])
+        queryClient.setQueryData(['messages', chatId], (old: Message[] = []) => {
+            return [...old, errorMsg]
+        })
     } finally {
         setIsLoading(false)
     }
@@ -144,39 +188,64 @@ export default function ChatPage() {
 
         <ScrollArea className="flex-1 p-4 bg-slate-50">
             <div className="max-w-3xl mx-auto space-y-6 pb-4">
-                {messages.length === 0 && (
-                    <div className="text-center text-slate-400 mt-20">
-                        <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <h3 className="text-lg font-medium text-slate-600">Ask me anything about this document!</h3>
-                    </div>
+                
+                {/* --- NEW LOADING SKELETON (Controlled by React Query now) --- */}
+                {isHistoryLoading ? (
+                  <div className="space-y-4 mt-4">
+                      {[1, 2, 3].map((n) => (
+                         <div key={n} className="flex gap-3 justify-start animate-pulse">
+                            <div className="h-8 w-8 rounded-full bg-slate-200" />
+                            <div className="h-16 w-[60%] rounded-2xl bg-slate-200" />
+                         </div>
+                      ))}
+                  </div>
+                ): isError ? ( 
+                  
+                  /* 2. ADD THIS NEW ERROR CHECK HERE */
+                  <div className="p-10 text-center text-red-500">
+                      Failed to load chat history.
+                  </div>
+
+                ) : (
+                  <>
+                    {/* --- YOUR EXISTING MESSAGES MAPPING --- */}
+                    {messages.length === 0 && (
+                        <div className="text-center text-slate-400 mt-20">
+                            <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <h3 className="text-lg font-medium text-slate-600">Ask me anything about this document!</h3>
+                        </div>
+                    )}
+                    
+                    {messages.map(m => (
+                        <div key={m.id} className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            {m.role === 'assistant' && (
+                                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                    <Bot className="h-5 w-5 text-blue-600" />
+                                </div>
+                            )}
+                            <div className={`
+                                max-w-[80%] rounded-2xl p-4 text-sm whitespace-pre-wrap
+                                ${m.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border shadow-sm text-slate-800'}
+                            `}>
+                                {m.content}
+                            </div>
+                        </div>
+                    ))}
+                    
+                    {/* --- EXISTING "Thinking..." LOADER --- */}
+                    {isLoading && (
+                        <div className="flex gap-3 justify-start">
+                             <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                    <Bot className="h-5 w-5 text-blue-600" />
+                             </div>
+                             <div className="bg-white border shadow-sm rounded-2xl p-4 text-sm text-slate-500 italic flex items-center gap-2">
+                                <span className="animate-pulse">Thinking...</span>
+                             </div>
+                        </div>
+                    )}
+                  </>
                 )}
                 
-                {messages.map(m => (
-                    <div key={m.id} className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        {m.role === 'assistant' && (
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <Bot className="h-5 w-5 text-blue-600" />
-                            </div>
-                        )}
-                        <div className={`
-                            max-w-[80%] rounded-2xl p-4 text-sm whitespace-pre-wrap
-                            ${m.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border shadow-sm text-slate-800'}
-                        `}>
-                            {m.content}
-                        </div>
-                    </div>
-                ))}
-
-                {isLoading && (
-                    <div className="flex gap-3 justify-start">
-                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <Bot className="h-5 w-5 text-blue-600" />
-                         </div>
-                         <div className="bg-white border shadow-sm rounded-2xl p-4 text-sm text-slate-500 italic flex items-center gap-2">
-                            <span className="animate-pulse">Thinking...</span>
-                         </div>
-                    </div>
-                )}
                 <div ref={scrollRef} />
             </div>
         </ScrollArea>

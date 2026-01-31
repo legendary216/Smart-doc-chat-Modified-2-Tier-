@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PlusCircle, FileText, Trash2, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+// --- NEW IMPORTS ---
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 interface Chat {
   id: string
@@ -14,61 +15,51 @@ interface Chat {
 }
 
 export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
-  const [chats, setChats] = useState<Chat[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  // --- NEW: Query Client for cache manipulation ---
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    const fetchChats = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+  // --- CHANGED: Replaced useState/useEffect with useQuery ---
+  const { data: chats = [], isLoading, isError } = useQuery({
+    queryKey: ['chats'], // This key matches the one we used in handleDelete
+    queryFn: async () => {
+      // 1. Check User
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError) throw authError
+      if (!user) return []
 
-        // 1. Check User
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-        if (authError) throw authError
-        if (!user) return
+      // 2. Fetch Chats
+      const { data, error: dbError } = await supabase
+        .from('chats')
+        .select('id, file_name, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
 
-        // 2. Fetch Chats
-        const { data, error: dbError } = await supabase
-          .from('chats')
-          .select('id, file_name, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-
-        if (dbError) throw dbError
-
-        if (data) setChats(data)
-
-      } catch (err: any) {
-        console.error("Error fetching chats:", err)
-        setError("Failed to load history")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchChats()
-  }, [])
+      if (dbError) throw dbError
+      return data as Chat[]
+    },
+    staleTime: 1000 * 60 * 5 // Cache for 5 minutes (prevents refetching on every page nav)
+  })
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault() // Prevent navigation
     if(!confirm("Delete this chat?")) return
 
-    try {
-        // Optimistic update: Remove from UI immediately
-        const originalChats = [...chats]
-        setChats(chats.filter(c => c.id !== id))
+    // --- CHANGED: Optimistic Update using Query Cache ---
+    
+    // 1. Snapshot the previous value (in case we need to rollback)
+    const previousChats = queryClient.getQueryData<Chat[]>(['chats'])
 
-        // Delete from DB
+    // 2. Optimistically update to the new value
+    queryClient.setQueryData(['chats'], (old: Chat[] = []) => {
+        return old.filter(c => c.id !== id)
+    })
+
+    try {
+        // 3. Delete from DB
         const { error } = await supabase.from('chats').delete().eq('id', id)
         
-        if (error) {
-            // Revert UI if DB fails
-            setChats(originalChats)
-            throw error
-        }
+        if (error) throw error
         
         // If we deleted the active chat, go home
         if (currentChatId === id) {
@@ -78,6 +69,8 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
     } catch (err) {
         console.error("Failed to delete chat:", err)
         alert("Could not delete chat. Please try again.")
+        // 4. Rollback cache on error
+        queryClient.setQueryData(['chats'], previousChats)
     }
   }
 
@@ -99,16 +92,24 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
           Your Documents
         </div>
         
-        {loading && <p className="px-4 text-sm text-slate-600 animate-pulse">Loading...</p>}
+        {/* --- CHANGED: Using useQuery's isLoading --- */}
+        {isLoading && (
+            <div className="px-4 space-y-2 mt-2">
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="h-8 bg-slate-800 rounded animate-pulse" />
+                ))}
+            </div>
+        )}
         
-        {error && (
+        {/* --- CHANGED: Using useQuery's isError --- */}
+        {isError && (
             <div className="px-4 text-sm text-red-400 flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" />
-                {error}
+                <span>Failed to load history</span>
             </div>
         )}
 
-        {!loading && chats.length === 0 && !error && (
+        {!isLoading && chats.length === 0 && !isError && (
            <p className="px-4 text-sm text-slate-600">No history yet.</p>
         )}
 
@@ -126,7 +127,7 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
               >
                 <div className="flex items-center gap-2 truncate">
                    <FileText className="h-4 w-4 shrink-0 opacity-70" />
-                   <span className="truncate max-w-140px">{chat.file_name}</span>
+                   <span className="truncate max-w-[140px]">{chat.file_name}</span>
                 </div>
 
                 <button 
@@ -146,8 +147,8 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
       {/* Footer */}
       <div className="p-4 border-t border-slate-800 bg-slate-900">
          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <div className={`h-2 w-2 rounded-full ${error ? 'bg-red-500' : 'bg-green-500'}`}></div>
-            {error ? 'Connection Error' : 'Connected'}
+            <div className={`h-2 w-2 rounded-full ${isError ? 'bg-red-500' : 'bg-green-500'}`}></div>
+            {isError ? 'Connection Error' : 'Connected'}
          </div>
       </div>
     </div>
