@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { MessageSquare, PlusCircle, FileText, Trash2 } from 'lucide-react'
+import { PlusCircle, FileText, Trash2, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
@@ -15,20 +15,38 @@ interface Chat {
 
 export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
   const [chats, setChats] = useState<Chat[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     const fetchChats = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        setLoading(true)
+        setError(null)
 
-      const { data, error } = await supabase
-        .from('chats')
-        .select('id, file_name, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        // 1. Check User
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError) throw authError
+        if (!user) return
 
-      if (data) setChats(data)
+        // 2. Fetch Chats
+        const { data, error: dbError } = await supabase
+          .from('chats')
+          .select('id, file_name, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (dbError) throw dbError
+
+        if (data) setChats(data)
+
+      } catch (err: any) {
+        console.error("Error fetching chats:", err)
+        setError("Failed to load history")
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchChats()
@@ -38,11 +56,28 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
     e.preventDefault() // Prevent navigation
     if(!confirm("Delete this chat?")) return
 
-    await supabase.from('chats').delete().eq('id', id)
-    setChats(chats.filter(c => c.id !== id))
-    
-    if (currentChatId === id) {
-        router.push('/')
+    try {
+        // Optimistic update: Remove from UI immediately
+        const originalChats = [...chats]
+        setChats(chats.filter(c => c.id !== id))
+
+        // Delete from DB
+        const { error } = await supabase.from('chats').delete().eq('id', id)
+        
+        if (error) {
+            // Revert UI if DB fails
+            setChats(originalChats)
+            throw error
+        }
+        
+        // If we deleted the active chat, go home
+        if (currentChatId === id) {
+            router.push('/')
+        }
+
+    } catch (err) {
+        console.error("Failed to delete chat:", err)
+        alert("Could not delete chat. Please try again.")
     }
   }
 
@@ -64,10 +99,20 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
           Your Documents
         </div>
         
-        {chats.length === 0 ? (
+        {loading && <p className="px-4 text-sm text-slate-600 animate-pulse">Loading...</p>}
+        
+        {error && (
+            <div className="px-4 text-sm text-red-400 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                {error}
+            </div>
+        )}
+
+        {!loading && chats.length === 0 && !error && (
            <p className="px-4 text-sm text-slate-600">No history yet.</p>
-        ) : (
-          <div className="space-y-1 px-2">
+        )}
+
+        <div className="space-y-1 px-2">
             {chats.map((chat) => (
               <Link 
                 key={chat.id} 
@@ -80,8 +125,8 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
                 `}
               >
                 <div className="flex items-center gap-2 truncate">
-                   <FileText className="h-4 w-4 flex-shrink-0 opacity-70" />
-                   <span className="truncate max-w-[140px]">{chat.file_name}</span>
+                   <FileText className="h-4 w-4 shrink-0 opacity-70" />
+                   <span className="truncate max-w-140px">{chat.file_name}</span>
                 </div>
 
                 <button 
@@ -95,15 +140,14 @@ export function ChatSidebar({ currentChatId }: { currentChatId?: string }) {
                 </button>
               </Link>
             ))}
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* User Info (Footer) */}
+      {/* Footer */}
       <div className="p-4 border-t border-slate-800 bg-slate-900">
          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <div className="h-2 w-2 rounded-full bg-green-500"></div>
-            Connected
+            <div className={`h-2 w-2 rounded-full ${error ? 'bg-red-500' : 'bg-green-500'}`}></div>
+            {error ? 'Connection Error' : 'Connected'}
          </div>
       </div>
     </div>

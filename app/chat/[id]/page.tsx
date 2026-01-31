@@ -9,10 +9,9 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import Link from 'next/link'
 import { searchContext } from '@/lib/search'
-import { generateAnswer } from '@/app/actions' // <--- Import Server Action
+import { generateAnswer } from '@/app/actions'
 import { ChatSidebar } from '@/components/chat/chat-sidebar'
 
-// Define Message Type locally
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -30,18 +29,37 @@ export default function ChatPage() {
   
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // 1. Fetch Chat Details & Message History
   useEffect(() => {
-    const fetchChat = async () => {
-      const { data, error } = await supabase
-        .from('chats')
-        .select('file_name')
-        .eq('id', chatId)
-        .single()
+    const fetchChatData = async () => {
+      try {
+        // A. Fetch Chat Info
+        const { data: chatData, error: chatError } = await supabase
+          .from('chats')
+          .select('file_name')
+          .eq('id', chatId)
+          .single()
+        
+        if (chatError) throw chatError
+        if (chatData) setTitle(chatData.file_name)
 
-      if (data) setTitle(data.file_name)
-      if (error) console.error("Error fetching chat:", error)
+        // B. Fetch Message History
+        const { data: msgData, error: msgError } = await supabase
+          .from('messages') // Accessing the table we created
+          .select('*')
+          .eq('chat_id', chatId)
+          .order('created_at', { ascending: true })
+
+        if (msgError) throw msgError
+        if (msgData) setMessages(msgData)
+
+      } catch (error) {
+        console.error("Error loading chat history:", error)
+        // Optional: Set a UI error state here if you want to show a toast
+      }
     }
-    fetchChat()
+
+    fetchChatData()
   }, [chatId])
 
   useEffect(() => {
@@ -50,43 +68,56 @@ export default function ChatPage() {
     }
   }, [messages])
 
-  // --- HANDLER ---
-  // We use React.FormEvent<HTMLFormElement> for strict React 19 compliance
+  // 2. Handle Submission
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
     const userQuestion = input;
-    
-    // 1. Optimistic UI
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: userQuestion }
-    setMessages(prev => [...prev, userMsg])
     setInput('')
     setIsLoading(true)
 
-    try {
-        // 2. Retrieve Context (Client-Side)
-       console.log("Searching...")
-        const contextResults = await searchContext(userQuestion, chatId)
-        console.log("contextResults : ",contextResults);
-        
-        // --- CRITICAL FIX: Include Page Numbers in the context sent to AI ---
-        const contextText = contextResults.map(c => `
-        SOURCE (Page ${c.page}):
-        ${c.content}
-        `).join('\n\n---\n\n');
+    // A. Optimistic UI update (Show user message immediately)
+    const userMsgOptimistic: Message = { id: Date.now().toString(), role: 'user', content: userQuestion }
+    setMessages(prev => [...prev, userMsgOptimistic])
 
-        // 3. Generate Answer
+    try {
+        // B. Save User Message to DB
+        // We await this to ensure data consistency, or you can fire-and-forget if speed is priority
+        const { error: userMsgError } = await supabase
+            .from('messages')
+            .insert({ chat_id: chatId, role: 'user', content: userQuestion })
+        
+        if (userMsgError) throw new Error("Failed to save user message: " + userMsgError.message)
+
+        // C. RAG Pipeline
+        console.log("Searching...")
+        const contextResults = await searchContext(userQuestion, chatId)
+        
+        const contextText = contextResults.map(c => `
+        START PAGE ${c.page} BLOCK:
+        ${c.content}
+        END PAGE ${c.page} BLOCK
+        `).join('\n\n');
+
         console.log("Generating answer...")
         const answer = await generateAnswer(contextText, userQuestion)
 
-        // 4. Show Result
+        // D. Update UI with AI Answer
         const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: answer }
         setMessages(prev => [...prev, aiMsg])
 
+        // E. Save AI Message to DB
+        const { error: aiMsgError } = await supabase
+            .from('messages')
+            .insert({ chat_id: chatId, role: 'assistant', content: answer })
+
+        if (aiMsgError) throw new Error("Failed to save AI message: " + aiMsgError.message)
+
     } catch (err) {
-        console.error(err)
-        const errorMsg: Message = { id: Date.now().toString(), role: 'assistant', content: "Sorry, something went wrong." }
+        console.error("Chat Error:", err)
+        // Show error in the chat bubble so the user knows something failed
+        const errorMsg: Message = { id: Date.now().toString(), role: 'assistant', content: "Sorry, I encountered an error. Please try again." }
         setMessages(prev => [...prev, errorMsg])
     } finally {
         setIsLoading(false)
@@ -95,10 +126,13 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-    <div className="hidden md:flex">
+      
+      {/* Sidebar */}
+      <div className="hidden md:flex">
          <ChatSidebar currentChatId={chatId} />
       </div>
 
+      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         <header className="h-16 border-b bg-white flex items-center justify-between px-6 shadow-sm">
             <h1 className="font-semibold text-slate-800 flex items-center gap-2">
@@ -120,7 +154,7 @@ export default function ChatPage() {
                 {messages.map(m => (
                     <div key={m.id} className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         {m.role === 'assistant' && (
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                                 <Bot className="h-5 w-5 text-blue-600" />
                             </div>
                         )}
@@ -135,7 +169,7 @@ export default function ChatPage() {
 
                 {isLoading && (
                     <div className="flex gap-3 justify-start">
-                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                                 <Bot className="h-5 w-5 text-blue-600" />
                          </div>
                          <div className="bg-white border shadow-sm rounded-2xl p-4 text-sm text-slate-500 italic flex items-center gap-2">
