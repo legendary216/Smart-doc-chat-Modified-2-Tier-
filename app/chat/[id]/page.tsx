@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import Link from 'next/link'
 import { searchContext } from '@/lib/search'
 import { generateAnswer } from '@/app/actions' // <--- Import Server Action
+import { ChatSidebar } from '@/components/chat/chat-sidebar'
 
 // Define Message Type locally
 interface Message {
@@ -94,20 +95,8 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <div className="w-64 bg-slate-900 text-slate-300 p-4 flex-col hidden md:flex">
-        <div className="mb-6">
-            <Link href="/" className="flex items-center gap-2 hover:text-white transition-colors">
-                <ArrowLeft className="h-4 w-4" />
-                <span className="font-semibold">Back to Home</span>
-            </Link>
-        </div>
-        <div className="flex-1">
-            <p className="text-xs font-bold text-slate-500 uppercase mb-4">Current Document</p>
-            <div className="flex items-center gap-2 p-2 bg-slate-800 rounded-md text-sm text-white">
-                <Paperclip className="h-4 w-4 text-blue-400" />
-                <span className="truncate">{title}</span>
-            </div>
-        </div>
+    <div className="hidden md:flex">
+         <ChatSidebar currentChatId={chatId} />
       </div>
 
       <div className="flex-1 flex flex-col">

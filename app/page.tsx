@@ -6,6 +6,7 @@ import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
 import { FileUploader } from "@/components/chat/file-uploader" // <--- Import
+import { ChatSidebar } from "@/components/chat/chat-sidebar"
 
 export default function Home() {
   const { session, user } = useAuthStore()
@@ -20,25 +21,27 @@ export default function Home() {
 
   if (!session) return <div className="p-10">Checking auth...</div>
 
-  return (
-    <div className="flex flex-col items-center pt-20 min-h-screen bg-slate-50 gap-8">
-      
-      {/* Header Section */}
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-slate-900">Chat with your Data</h1>
-        <p className="text-slate-500">Upload a PDF to get started</p>
+return (
+    <div className="flex h-screen bg-slate-50">
+      {/* Sidebar on Home Page too */}
+      <div className="hidden md:flex">
+        <ChatSidebar />
       </div>
 
-      {/* The New Feature */}
-      <FileUploader />
-
-      {/* Footer Info */}
-      <div className="absolute bottom-4 text-xs text-slate-400">
-        Logged in as {user?.email} • 
-        <button onClick={() => supabase.auth.signOut()} className="ml-2 underline hover:text-slate-600">
-          Sign Out
-        </button>
-      </div>
+      <main className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="max-w-2xl w-full text-center space-y-8">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight text-slate-900">
+              Chat with your PDF
+            </h1>
+            <p className="text-lg text-slate-600">
+              Upload a document and start asking questions instantly using AI.
+            </p>
+          </div>
+          
+          <FileUploader />
+        </div>
+      </main>
     </div>
   )
 }
