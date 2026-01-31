@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, createContext, useContext } from 'react'
+import { usePathname } from 'next/navigation' // <--- 1. Import this
 import { ChatSidebar } from '@/components/chat/chat-sidebar'
 import { Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,21 +18,28 @@ export function useSidebar() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(true) // Default to open
+  const pathname = usePathname() // <--- 2. Get current path
 
+  // --- 3. THE FIX: Hide Sidebar on Login ---
+  // If we are on the login page, render ONLY the children (the form)
+  // We skip the SidebarContext and the split-screen layout entirely.
+  if (pathname === "/login") {
+    return <main className="h-screen bg-slate-50">{children}</main>;
+  }
+
+  // Otherwise, render the standard App Layout with Sidebar
   return (
     <SidebarContext.Provider value={{ isOpen, toggle: () => setIsOpen(!isOpen) }}>
       <div className="flex h-screen bg-slate-50 overflow-hidden">
         
         {/* --- THE SIDEBAR PANEL --- */}
-        {/* We use CSS transitions for that smooth "push" effect */}
         <div 
-  className={`
-    shrink-0 transition-all duration-300 ease-in-out border-r border-slate-800 bg-slate-900
-    overflow-hidden whitespace-nowrap  // <--- MOVED HERE (Always Active)
-    
-    ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0'}
-  `}
->
+          className={`
+            shrink-0 transition-all duration-300 ease-in-out border-r border-slate-800 bg-slate-900
+            overflow-hidden whitespace-nowrap 
+            ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0'}
+          `}
+        >
           <ChatSidebar />
         </div>
 

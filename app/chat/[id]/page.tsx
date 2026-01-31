@@ -52,7 +52,7 @@ export default function ChatPage() {
   const [typingSpeed, setTypingSpeed] = useState(30); // 30ms default delay
   const [showSettings, setShowSettings] = useState(false);
   const [finishedTypingIds, setFinishedTypingIds] = useState<Set<string>>(new Set());
-  // 2. Fetch Chat Title
+  const [hasStreamed, setHasStreamed] = useState(false);
 
   // 10 = Very Fast, 30 = Normal, 50 = Slow
   const HARDCODED_SPEED = 15;
@@ -83,7 +83,11 @@ export default function ChatPage() {
   // FIX: We removed 'api' (it defaults to /api/chat)
   // FIX: We removed 'initialMessages' (we hydrate manually below)
   const { messages, sendMessage, status, setMessages } = useChat();
-
+useEffect(() => {
+    if (status === 'streaming') {
+      setHasStreamed(true);
+    }
+  }, [status]);
   // 5. Hydrate History (DB String -> SDK Parts)
   // This bypasses the 'initialMessages' type error safely
   useEffect(() => {
@@ -157,7 +161,7 @@ export default function ChatPage() {
              const hasFinishedTyping = finishedTypingIds.has(m.id);
 
              // Use Typewriter if it's the Assistant, it's the last message, AND it hasn't finished typing yet
-             const useTypewriter = isAssistant && isLastMessage && !hasFinishedTyping;
+           const useTypewriter = isAssistant && isLastMessage && !hasFinishedTyping && hasStreamed;
 
              return (
               <div key={m.id} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
