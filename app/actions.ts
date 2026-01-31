@@ -50,7 +50,7 @@ export async function searchContext(query: string, chatId: string) {
 
 export async function generateAnswer(context: string, question: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
   const prompt = `
       You are an intelligent document assistant. Your task is to answer the user's question based strictly on the provided context.
