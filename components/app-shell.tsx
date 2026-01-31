@@ -24,20 +24,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // If we are on the login page, render ONLY the children (the form)
   // We skip the SidebarContext and the split-screen layout entirely.
   if (pathname === "/login") {
-    return <main className="h-screen bg-slate-50">{children}</main>;
+    return <main className="h-screen bg-slate-950">{children}</main>;
   }
 
   // Otherwise, render the standard App Layout with Sidebar
   return (
     <SidebarContext.Provider value={{ isOpen, toggle: () => setIsOpen(!isOpen) }}>
-      <div className="flex h-screen bg-slate-50 overflow-hidden">
+      <div className="flex h-screen bg-slate-950 overflow-hidden">
         
         {/* --- THE SIDEBAR PANEL --- */}
         <div 
           className={`
             shrink-0 transition-all duration-300 ease-in-out border-r border-slate-800 bg-slate-900
             overflow-hidden whitespace-nowrap 
-            ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0'}
+            ${isOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full opacity-0'}
           `}
         >
           <ChatSidebar />

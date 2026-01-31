@@ -4,27 +4,19 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Loader2 } from 'lucide-react'
-import { FileUploader } from "@/components/chat/file-uploader"
 
 export default function AuthCallbackPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // The AuthProvider in layout.tsx is already listening for the session.
-    // However, sometimes we need to manually exchange the code for a session 
-    // if the auto-detection is slow or using PKCE flow.
     const handleAuthCallback = async () => {
-      // 1. Check if the URL contains a code (PKCE flow)
       const { searchParams } = new URL(window.location.href)
       const code = searchParams.get('code')
 
       if (code) {
-        // Exchange the code for a session
         await supabase.auth.exchangeCodeForSession(code)
       }
       
-      // 2. Redirect to home immediately
-      // The global AuthProvider will detect the new session and update the UI
       router.push('/')
     }
 
@@ -32,10 +24,31 @@ export default function AuthCallbackPage() {
   }, [router])
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <h3 className="font-semibold text-slate-700">Finalizing login...</h3>
+    // 1. Dark Background with overflow hidden for the glow effect
+    <div className="flex h-screen w-full items-center justify-center bg-slate-950 relative overflow-hidden">
+      
+      {/* 2. Visual Depth: The "Spotlight" Glow Effect */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-500px h-500px bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* 3. Content Container (Z-index ensures it sits above the glow) */}
+      <div className="relative z-10 flex flex-col items-center gap-6 p-8 rounded-2xl bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 shadow-2xl">
+        
+        {/* Vibrant Loader */}
+        <div className="p-3 bg-slate-900 rounded-full border border-slate-800 shadow-inner">
+           <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        </div>
+        
+        <div className="text-center space-y-2">
+           {/* Primary Text */}
+           <h3 className="font-semibold text-lg text-slate-200 tracking-tight">
+             Finalizing login...
+           </h3>
+           
+           {/* Secondary Text */}
+           <p className="text-sm text-slate-500">
+             Please wait while we secure your session
+           </p>
+        </div>
       </div>
     </div>
   )

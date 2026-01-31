@@ -4,10 +4,9 @@ import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Send, Bot, Menu, ArrowLeft, Loader2, Sparkles } from "lucide-react"; 
+import { Send, Bot, Menu, FileText, Sparkles, User, Loader2 } from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useSidebar } from "@/components/app-shell";
 import ReactMarkdown from "react-markdown";
@@ -18,7 +17,6 @@ interface DBMessage {
   content: string;
 }
 
-// --- TYPEWRITER COMPONENT (Logic Unchanged) ---
 const Typewriter = ({ content, speed, onComplete }: { content: string, speed: number, onComplete?: () => void }) => {
   const [displayedContent, setDisplayedContent] = useState("");
   
@@ -50,12 +48,10 @@ export default function ChatPage() {
   const { toggle } = useSidebar();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [title, setTitle] = useState("Chat");
-  
   const [input, setInput] = useState("");
   const [finishedTypingIds, setFinishedTypingIds] = useState<Set<string>>(new Set());
   const [hasStreamed, setHasStreamed] = useState(false);
 
-  // 10 = Very Fast, 30 = Normal, 50 = Slow
   const HARDCODED_SPEED = 15;
 
   useEffect(() => {
@@ -82,9 +78,7 @@ export default function ChatPage() {
   const { messages, sendMessage, status, setMessages } = useChat();
 
   useEffect(() => {
-    if (status === 'streaming') {
-      setHasStreamed(true);
-    }
+    if (status === 'streaming') setHasStreamed(true);
   }, [status]);
 
   useEffect(() => {
@@ -109,68 +103,47 @@ export default function ChatPage() {
   const handleSend = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-
     const currentInput = input;
     setInput(""); 
-
-    await sendMessage(
-      { text: currentInput },
-      { body: { chatId } } 
-    );
+    await sendMessage({ text: currentInput }, { body: { chatId } });
   };
 
   return (
-    // DARK MODE BASE: bg-slate-950
-    <div className="flex flex-col h-full w-full bg-slate-950 text-slate-100 relative">
+    <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 relative font-sans selection:bg-blue-500/30">
       
-      {/* --- HEADER (Dark Glass) --- */}
-      <header className="sticky top-0 z-10 h-16 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 shadow-sm transition-all">
-        <div className="flex items-center gap-3 overflow-hidden">
-          {/* Toggle Sidebar Button */}
-          <Button variant="ghost" size="icon" onClick={toggle} className="shrink-0 text-slate-400 hover:text-slate-200 hover:bg-slate-800">
-            <Menu className="h-5 w-5" />
-          </Button>
-
-          {/* Title & Back Link */}
-          <div className="flex items-center gap-2 overflow-hidden">
-            <span className="md:hidden shrink-0">
-              <Link href="/" className="text-slate-400 hover:text-slate-200">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </span>
-            <h1 className="font-semibold text-slate-100 truncate text-sm md:text-base max-w-[200px] md:max-w-md">
-              {title}
-            </h1>
+      <header className="sticky top-0 z-30 h-14 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md flex items-center px-4 transition-all">
+        <div className="w-full max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <Button variant="ghost" size="icon" onClick={toggle} className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
+              <Menu className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-2 group cursor-default">
+              <div className="p-1.5 bg-blue-500/10 rounded-md border border-blue-500/20">
+                <FileText className="h-3.5 w-3.5 text-blue-400" />
+              </div>
+              <h1 className="font-medium text-slate-200 truncate text-xs tracking-tight">
+                {title}
+              </h1>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* --- CHAT AREA --- */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6 md:py-8 scroll-smooth scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-        <div className="max-w-3xl mx-auto space-y-8 pb-4">
+      {/* Improved Scrollable Area */}
+     <main className="flex-1 overflow-y-auto 
+  [&::-webkit-scrollbar]:hidden 
+  [-ms-overflow-style:none] 
+  [scrollbar-width:none]">
+        
+        <div className="w-full max-w-3xl mx-auto px-4 py-12 space-y-12">
           
-          {/* Loading State */}
           {isHistoryLoading && messages.length === 0 && (
-             <div className="flex flex-col items-center justify-center space-y-3 py-10 opacity-60">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                <p className="text-sm text-slate-500 font-medium">Loading conversation...</p>
+             <div className="flex flex-col items-center justify-center space-y-4 py-20">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-500/50" />
+                <p className="text-xs text-slate-500 font-medium tracking-widest uppercase">Initializing History</p>
              </div>
           )}
 
-          {/* Empty State / Start */}
-          {!isHistoryLoading && messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center text-center space-y-4 py-20 px-4">
-               <div className="h-16 w-16 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center mb-2 shadow-inner">
-                 <Sparkles className="h-8 w-8 text-blue-500" />
-               </div>
-               <h2 className="text-xl font-semibold text-slate-100">Ready to help!</h2>
-               <p className="text-slate-400 max-w-sm">
-                 Ask me anything about your document. I'll cite page numbers for accuracy.
-               </p>
-            </div>
-          )}
-
-          {/* Messages Loop */}
           {messages.map((m, index) => {
              const isLastMessage = index === messages.length - 1;
              const isAssistant = m.role === 'assistant';
@@ -180,98 +153,100 @@ export default function ChatPage() {
              return (
               <div 
                 key={m.id} 
-                className={`group flex w-full gap-4 ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                className={`flex w-full animate-in fade-in slide-in-from-bottom-3 duration-500 ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                {/* Assistant Avatar (Dark Mode) */}
-                {m.role === "assistant" && (
-                  <div className="hidden sm:flex h-8 w-8 rounded-full bg-slate-900 border border-slate-800 shadow-sm items-center justify-center shrink-0 mt-1">
-                    <Bot className="h-4 w-4 text-blue-500" />
-                  </div>
-                )}
-                
-                {/* Message Bubble */}
-                <div 
-                  className={`
-                    relative max-w-[85%] md:max-w-[75%] px-5 py-3.5 text-sm shadow-sm
-                    ${m.role === "user" 
-                      ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm"  // Keep User Blue
-                      : "bg-slate-900 border border-slate-800 text-slate-100 rounded-2xl rounded-tl-sm" // Dark AI Bubble
-                    }
-                  `}
-                >
-                  {m.parts.map((part, partIndex) => {
-                    if (part.type !== 'text') return null;
-                    
-                    if (m.role === "user") {
-                      return <span key={partIndex} className="leading-relaxed">{part.text}</span>;
-                    }
-
-                    return (
-                      // Added 'prose-invert' to make text white
-                      <div key={partIndex} className="prose prose-sm prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-800 prose-pre:text-slate-200">
-                        {useTypewriter ? (
-                          <Typewriter 
-                            content={part.text} 
-                            speed={HARDCODED_SPEED}
-                            onComplete={() => {
-                              setFinishedTypingIds(prev => new Set(prev).add(m.id));
-                            }} 
-                          />
-                        ) : (
-                          <ReactMarkdown>{part.text}</ReactMarkdown>
-                        )}
+                <div className={`flex gap-4 w-full ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                  <div className="shrink-0">
+                    {m.role === "assistant" ? (
+                      <div className="h-8 w-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                        <Bot className="h-4 w-4 text-blue-400" />
                       </div>
-                    );
-                  })}
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
+                        <User className="h-4 w-4 text-slate-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`
+                    relative max-w-[85%] leading-relaxed text-[15px]
+                    ${m.role === "user" 
+                      ? "bg-slate-800/80 backdrop-blur-sm text-slate-100 px-4 py-2.5 rounded-2xl rounded-tr-sm border border-slate-700/50 shadow-sm" 
+                      : "text-slate-300 pt-1.5"
+                    }
+                  `}>
+                    {m.parts.map((part, partIndex) => {
+                      if (part.type !== 'text') return null;
+                      if (m.role === "user") return <span key={partIndex}>{part.text}</span>;
+
+                      return (
+                        <div key={partIndex} className="prose prose-invert prose-p:leading-7 prose-li:text-slate-300 prose-strong:text-white prose-headings:text-slate-100 max-w-none">
+                          {useTypewriter ? (
+                            <Typewriter 
+                              content={part.text} 
+                              speed={HARDCODED_SPEED}
+                              onComplete={() => setFinishedTypingIds(prev => new Set(prev).add(m.id))} 
+                            />
+                          ) : (
+                            <ReactMarkdown>{part.text}</ReactMarkdown>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             );
           })}
 
-          {/* Thinking Indicator (Dark) */}
           {(status === 'submitted' || (status === 'streaming' && messages[messages.length - 1]?.role !== 'assistant')) && (
-            <div className="flex gap-4 justify-start animate-in fade-in duration-300">
-              <div className="hidden sm:flex h-8 w-8 rounded-full bg-slate-900 border border-slate-800 shadow-sm items-center justify-center shrink-0">
-                <Bot className="h-4 w-4 text-blue-500" />
-              </div>
-              <div className="bg-slate-900 border border-slate-800 shadow-sm rounded-2xl rounded-tl-sm px-5 py-3 text-sm text-slate-400 flex items-center gap-2">
-                <span className="flex gap-1">
-                  <span className="h-1.5 w-1.5 bg-slate-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                  <span className="h-1.5 w-1.5 bg-slate-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                  <span className="h-1.5 w-1.5 bg-slate-500 rounded-full animate-bounce"></span>
-                </span>
-                <span className="text-xs font-medium opacity-80">Analyzing...</span>
-              </div>
+            <div className="flex justify-start w-full animate-pulse">
+               <div className="flex gap-4 items-center">
+                  <div className="h-8 w-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
+                     <Bot className="h-4 w-4 text-blue-500/50" />
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium tracking-widest uppercase">Thinking</span>
+               </div>
             </div>
           )}
           
-          <div ref={scrollRef} className="h-px w-full" />
+          <div ref={scrollRef} className="h-20 w-full" />
         </div>
-      </div>
+      </main>
 
-      {/* --- INPUT AREA (Dark Glass) --- */}
-      <div className="p-4 bg-slate-950/80 backdrop-blur-lg border-t border-slate-800 sticky bottom-0 z-20">
-        <form onSubmit={handleSend} className="max-w-3xl mx-auto relative flex items-center gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question..."
-            // Dark Input Styling
-            className="flex-1 min-h-[48px] rounded-full border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500 px-5 shadow-sm focus-visible:ring-blue-500 focus-visible:border-blue-500"
-            disabled={status !== 'ready' && status !== 'error'}
-          />
-          <Button 
-            type="submit" 
-            size="icon" 
-            disabled={status !== 'ready' && status !== 'error'}
-            className={`
-               h-12 w-12 rounded-full shadow-md transition-all duration-200
-               ${input.trim() ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-slate-800 text-slate-600 cursor-not-allowed'}
-            `}
+      <div className="absolute bottom-0 left-0 right-0 p-1 bg-linear-to-t from-slate-950 via-slate-950 to-transparent pointer-events-none">
+        <div className="max-w-3xl mx-auto mb-6 pointer-events-auto">
+          <form 
+            onSubmit={handleSend} 
+            className="group relative flex items-center gap-2 bg-slate-900/80 backdrop-blur-xl border border-slate-800 p-2 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all focus-within:border-blue-500/40 focus-within:ring-1 focus-within:ring-blue-500/20"
           >
-            <Send className="h-5 w-5 ml-0.5" />
-          </Button>
-        </form>
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask anything..."
+              className="flex-1 border-0 bg-transparent text-slate-200 placeholder:text-slate-600 px-4 focus-visible:ring-0 h-10 text-[15px]"
+              disabled={status !== 'ready' && status !== 'error'}
+              autoFocus
+            />
+            <Button 
+              type="submit" 
+              size="icon" 
+              disabled={status !== 'ready' && status !== 'error'}
+              className={`
+                  h-9 w-9 rounded-xl transition-all duration-300 shrink-0 mr-1
+                  ${input.trim() 
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 scale-100' 
+                    : 'bg-slate-800 text-slate-600 scale-95 opacity-50'
+                  }
+              `}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+          <p className="text-center text-[10px] text-slate-600 mt-4 tracking-tight">
+            AI-generated content may be inaccurate.
+          </p>
+        </div>
       </div>
     </div>
   );
