@@ -25,11 +25,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* --- THE SIDEBAR PANEL --- */}
         {/* We use CSS transitions for that smooth "push" effect */}
         <div 
-          className={`
-            shrink-0 transition-all duration-300 ease-in-out border-r border-slate-800 bg-slate-900
-            ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0 overflow-hidden'}
-          `}
-        >
+  className={`
+    shrink-0 transition-all duration-300 ease-in-out border-r border-slate-800 bg-slate-900
+    overflow-hidden whitespace-nowrap  // <--- MOVED HERE (Always Active)
+    
+    ${isOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0'}
+  `}
+>
           <ChatSidebar />
         </div>
 
