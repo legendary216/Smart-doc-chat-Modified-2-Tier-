@@ -55,11 +55,27 @@ export default function Home() {
       <div className="relative z-10 w-full max-w-xl px-6">
         <div className="group relative">
           {/* Glass Container */}
-          <div className="bg-slate-900/20 backdrop-blur-2xl border border-white/0.05 rounded-[40px] p-4 shadow-2xl transition-all duration-500 hover:border-white/10">
-            <div className="bg-slate-950/40 rounded-[32px] p-1 border border-white/0.03">
-              <FileUploader />
-            </div>
-          </div>
+<div
+  className="
+    relative
+    rounded-20px
+    p-14px
+    bg-linear-to-b from-slate-900 to-slate-950
+    shadow-[0_30px_80px_rgba(0,0,0,0.7)]
+  "
+>
+  {/* outer edge – subtle depth */}
+  <div className="absolute inset-0 rounded-20px ring-1 ring-white/5 pointer-events-none" />
+
+  {/* inner edge – separation layer */}
+  <div className="absolute inset-6px rounded-[14px] ring-1 ring-black/50 pointer-events-none" />
+
+  {/* content well */}
+  <div className="relative rounded-12px bg-slate-950 p-1">
+    <FileUploader />
+  </div>
+</div>
+
 
           {/* Unobtrusive Trust Caption */}
           <div className="mt-6 text-center">
