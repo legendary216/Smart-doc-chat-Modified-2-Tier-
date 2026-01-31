@@ -110,13 +110,20 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 relative font-sans selection:bg-blue-500/30">
-      
+      <div className="absolute top-6 left-6 z-40">
+  <Button 
+    variant="ghost" 
+    size="icon" 
+    onClick={toggle} 
+    className="text-slate-500 hover:text-white hover:bg-white/5 backdrop-blur-sm transition-all"
+  >
+    <Menu className="h-5 w-5" />
+  </Button>
+</div>
       <header className="sticky top-0 z-30 h-14 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md flex items-center px-4 transition-all">
         <div className="w-full max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <Button variant="ghost" size="icon" onClick={toggle} className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
-              <Menu className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-3 overflow-hidden ml-12 lg:ml-0">
+         
             <div className="flex items-center gap-2 group cursor-default">
               <div className="p-1.5 bg-blue-500/10 rounded-md border border-blue-500/20">
                 <FileText className="h-3.5 w-3.5 text-blue-400" />
