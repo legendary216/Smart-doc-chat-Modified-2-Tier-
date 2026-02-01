@@ -73,7 +73,8 @@ export default function Page() {
     "h-full flex-1 transition-all duration-500 ease-in-out z-10",
     isPdfOpen ? "lg:mr-[40%]" : "mr-0" 
   )}>
-    <ChatPage onCitationClick={handleCitationClick} />
+    <ChatPage onCitationClick={handleCitationClick} isPdfOpen={isPdfOpen} 
+  setIsPdfOpen={setIsPdfOpen} />
   </div>
 
   <aside className={cn(

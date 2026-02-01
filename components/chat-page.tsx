@@ -51,6 +51,8 @@ const CitationRenderer = ({ text, onCitationClick }: { text: string, onCitationC
 // ----------------------------------------------------------------------
 // 2. TYPEWRITER COMPONENT (Kept exactly as you had it)
 // ----------------------------------------------------------------------
+
+
 const Typewriter = ({ content, speed, onComplete }: { content: string, speed: number, onComplete?: () => void }) => {
   const [displayedContent, setDisplayedContent] = useState("");
   
@@ -88,10 +90,15 @@ const Typewriter = ({ content, speed, onComplete }: { content: string, speed: nu
 // 3. MAIN CHAT COMPONENT
 // ----------------------------------------------------------------------
 interface ChatPageProps {
-  onCitationClick?: () => void; // Prop to switch tabs on mobile
+  onCitationClick?: () => void;
+  isPdfOpen?: boolean;
+  setIsPdfOpen?: (open: boolean) => void;
 }
-
-export default function ChatPage({ onCitationClick }: ChatPageProps) {
+export default function ChatPage({ 
+  onCitationClick, 
+  isPdfOpen, 
+  setIsPdfOpen 
+}: ChatPageProps){
   const params = useParams();
   const chatId = params.id as string;
   const { toggle } = useSidebar();
@@ -182,41 +189,45 @@ export default function ChatPage({ onCitationClick }: ChatPageProps) {
         </Button>
       </div> */}
 
-    <header className="sticky top-0 z-30 h-14 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md flex items-center transition-all">
-        {/* Full-width container to hold both ends */}
-        <div className="w-full flex items-center px-4">
-          
-          {/* 1. FAR LEFT: The Menu Button (outside the centered flow) */}
-          <div className="flex shrink-0">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={toggle} 
-              className="text-slate-500 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </div>
+   <header className="sticky top-0 z-30 h-14 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md flex items-center transition-all">
+  <div className="w-full flex items-center px-4">
+    
+    {/* LEFT: Menu Button */}
+    <div className="flex shrink-0">
+      <Button variant="ghost" size="icon" onClick={toggle} className="text-slate-500 hover:text-white">
+        <Menu className="h-5 w-5" />
+      </Button>
+    </div>
 
-          {/* 2. CENTERED: The File Info (aligned with Chat flow) */}
-          <div className="flex-1 flex justify-center px-4">
-            <div className="w-full max-w-3xl flex items-center gap-3 overflow-hidden">
-              <div className="flex items-center gap-2 group cursor-default">
-                <div className="p-1.5 bg-blue-500/10 rounded-md border border-blue-500/20">
-                  <FileText className="h-3.5 w-3.5 text-blue-400" />
-                </div>
-                <h1 className="font-medium text-slate-200 truncate text-xs tracking-tight">
-                  {title}
-                </h1>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. BALANCE: Invisible spacer to keep the center content perfectly centered */}
-          <div className="w-10 shrink-0 lg:block hidden" />
+    {/* CENTER: Title */}
+    <div className="flex-1 flex justify-center px-4">
+      <div className="w-full max-w-3xl flex items-center gap-3 overflow-hidden">
+        <div className="p-1.5 bg-blue-500/10 rounded-md border border-blue-500/20 shrink-0">
+          <FileText className="h-3.5 w-3.5 text-blue-400" />
         </div>
-      </header>
+        <h1 className="font-medium text-slate-200 truncate text-xs tracking-tight">
+          {title}
+        </h1>
+      </div>
+    </div>
 
+    {/* RIGHT: NEW VIEW DOCUMENT BUTTON */}
+    <div className="flex shrink-0">
+      {!isPdfOpen && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => setIsPdfOpen?.(true)}
+          className="h-8 border-slate-800 bg-slate-900/50 text-slate-400 hover:text-blue-400 hover:border-blue-500/50 transition-all gap-2 text-[10px] font-bold uppercase tracking-widest px-3"
+        >
+          <FileText className="h-3 w-3" />
+          View PDF
+        </Button>
+      )}
+    </div>
+
+  </div>
+</header>
       {/* Improved Scrollable Area */}
       <main className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         
