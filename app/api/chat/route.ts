@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       You are an expert analyst. Answer strictly from the CONTEXT below.
 
       INSTRUCTIONS:
-      1. **Be Detailed:** Explain "Why" and "How". Avoid short answers.
+      1. **Be Detailed:** Explain "Why" and "How" in simple words. Avoid short answers.
       2. **Citations:** End every key statement with [Page X].
          - DERIVE "X" ONLY from the [Source: Page X] header.
          - IGNORE any other numbers inside the text.
