@@ -87,32 +87,40 @@ export default function Page() {
       </div>
 
       {/* CONTENT */}
+  {/* CONTENT WRAPPER */}
       <div className="flex flex-1 overflow-hidden relative">
         
-        {/* LEFT: CHAT */}
+        {/* LEFT: CHAT (Primary Focus - 70%) */}
         <div className={cn(
-          "h-full w-full md:w-[45%] lg:w-[40%] md:border-r border-slate-800",
+          "h-full w-full md:w-[60%] transition-all duration-300 ease-in-out z-20",
           activeTab === 'pdf' ? "hidden md:block" : "block"
         )}>
           <ChatPage onCitationClick={handleCitationClick} />
         </div>
 
-        {/* RIGHT: PDF */}
+        {/* RIGHT: PDF (Secondary Focus - 30%) */}
         <div className={cn(
-          "flex flex-col h-full w-full md:w-[55%] lg:w-[60%] bg-slate-100",
+          "h-full w-full md:w-[40%] bg-slate-900 flex flex-col transition-all duration-300 ease-in-out border-l border-slate-800",
           activeTab === 'chat' ? "hidden md:flex" : "flex"
         )}>
-           {/* Right Header */}
-           <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm z-10">
-            <div className="flex items-center gap-2 text-slate-700">
-              <FileText className="h-4 w-4 text-slate-400" />
-              <span className="text-sm font-medium">Original Document</span>
+          
+          {/* Subtle Aesthetic Header */}
+          <header className="flex h-12 shrink-0 items-center px-4 border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <div className="p-1 bg-blue-500/10 rounded">
+                <FileText className="h-3.5 w-3.5 text-blue-400" />
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Document</span>
             </div>
           </header>
 
-          <div className="flex-1 relative w-full overflow-hidden">
-            <PDFViewer />
+          {/* PDF Frame: Adding padding makes it look like a physical sheet */}
+          <div className="flex-1 p-3 bg-slate-950/50 overflow-hidden">
+            <div className="h-full w-full rounded-xl overflow-hidden shadow-2xl ring-1 ring-slate-800 bg-white">
+              <PDFViewer />
+            </div>
           </div>
+          
         </div>
 
       </div>
