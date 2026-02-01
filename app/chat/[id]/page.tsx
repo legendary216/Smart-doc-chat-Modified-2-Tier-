@@ -112,6 +112,7 @@ export default function ChatPage() {
   };
 
   return (
+    
     <div className="flex flex-col h-full w-full bg-slate-950 text-slate-200 relative font-sans selection:bg-blue-500/30">
       <div className="absolute top-6 left-6 z-40">
   <Button 
