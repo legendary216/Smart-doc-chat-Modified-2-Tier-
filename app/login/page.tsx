@@ -11,11 +11,12 @@ import { useRouter } from "next/navigation"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [otp, setOtp] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+const [isEmailLoading, setIsEmailLoading] = useState(false)
   const [step, setStep] = useState<'email' | 'otp'>('email') 
   const [resendTimer, setResendTimer] = useState(0) // Timer for resend button
   const router = useRouter()
-
+const isAnyLoading = isGoogleLoading || isEmailLoading;
   // Decrement timer
   useEffect(() => {
     if (resendTimer > 0) {
@@ -27,14 +28,14 @@ export default function LoginPage() {
   // 1. Send OTP (Used for initial send AND resend)
   const handleSendOtp = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault()
-    setIsLoading(true)
+    setIsEmailLoading(true)
     
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true }, 
     })
 
-    setIsLoading(false)
+    setIsEmailLoading(false)
 
     if (error) {
       alert("Error sending OTP: " + error.message)
@@ -47,7 +48,7 @@ export default function LoginPage() {
   // 2. Verify OTP
   const handleVerifyOtp = async (e: React.SyntheticEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setIsEmailLoading(true)
 
     const { error } = await supabase.auth.verifyOtp({
       email,
@@ -57,7 +58,7 @@ export default function LoginPage() {
 
     if (error) {
       alert("Invalid code: " + error.message)
-      setIsLoading(false)
+      setIsEmailLoading(false)
     } else {
       router.push('/') 
     }
@@ -65,13 +66,18 @@ export default function LoginPage() {
 
   // 3. Google OAuth Handler
   const handleGoogleLogin = async () => {
-    setIsLoading(true)
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${location.origin}/auth/callback`,
-      },
-    })
+    setIsGoogleLoading(true)
+    try{
+
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${location.origin}/auth/callback`,
+        },
+      })
+    }catch{
+      setIsGoogleLoading(false)
+    }
   }
 
   return (
@@ -111,10 +117,10 @@ export default function LoginPage() {
               
               <Button 
                 type="submit" 
-                disabled={isLoading} 
+                disabled={isAnyLoading} 
                 className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-medium text-base transition-all"
               >
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                {isEmailLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                 Continue with Email
               </Button>
 
@@ -130,12 +136,13 @@ export default function LoginPage() {
               <Button 
                 type="button"
                 onClick={handleGoogleLogin} 
-                disabled={isLoading} 
+                disabled={isAnyLoading} 
                 variant="outline"
                 className="w-full h-12 border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white transition-all" 
               >
+                {isGoogleLoading ? <Loader2 className="..." /> :
                  <svg className="mr-3 h-5 w-5" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path></svg>
-                 Google
+                }Google
               </Button>
             </form>
           )}
@@ -158,10 +165,10 @@ export default function LoginPage() {
 
               <Button 
                 type="submit" 
-                disabled={isLoading} 
+                disabled={isEmailLoading} 
                 className="w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-base transition-all"
               >
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                {isEmailLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                 Verify & Login
               </Button>
               
@@ -171,7 +178,7 @@ export default function LoginPage() {
                     type="button"
                     variant="ghost"
                     onClick={() => handleSendOtp()}
-                    disabled={resendTimer > 0 || isLoading}
+                    disabled={resendTimer > 0 || isAnyLoading}
                     className="w-full text-slate-400 hover:text-white hover:bg-slate-800"
                   >
                     {resendTimer > 0 ? (
