@@ -8,7 +8,7 @@ import { parseFile } from '@/lib/pdf-parser'
 import { saveDocument } from '@/lib/storage'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useRouter } from 'next/navigation'
-
+import { useQueryClient } from '@tanstack/react-query'
 /**
  * References:
  * Tailwind Glassmorphism: https://tailwindcss.com/docs/backdrop-blur
@@ -23,6 +23,7 @@ export function FileUploader() {
   
   const { user } = useAuthStore()
   const router = useRouter()
+const queryClient = useQueryClient()
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     try {
@@ -46,7 +47,7 @@ export function FileUploader() {
            setProgress(percentage)
            setStatus(`Processing Page ${current} of ${total}...`)
         })
-
+await queryClient.invalidateQueries({ queryKey: ['chats'] })
         setStatus("Done! Redirecting...")
         setProgress(100)
         
