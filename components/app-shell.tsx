@@ -29,24 +29,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Otherwise, render the standard App Layout with Sidebar
   return (
-    <SidebarContext.Provider value={{ isOpen, toggle: () => setIsOpen(!isOpen) }}>
-      <div className="flex h-screen bg-slate-950 overflow-hidden">
+   <SidebarContext.Provider value={{ isOpen, toggle: () => setIsOpen(!isOpen) }}>
+      <div className="flex h-screen bg-slate-950 overflow-hidden relative">
         
-        {/* --- THE SIDEBAR PANEL --- */}
-        <div 
+        {/* --- 1. MOBILE OVERLAY (Backdrop) --- */}
+        {isOpen && (
+          <div 
+            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
+          />
+        )}
+
+        {/* --- 2. THE SIDEBAR PANEL --- */}
+        <aside 
           className={`
-            shrink-0 transition-all duration-300 ease-in-out border-r border-slate-800 bg-slate-900
+            /* Mobile: Fixed overlay */
+            fixed inset-y-0 left-0 z-50 w-72 
+            /* Desktop: Relative push */
+            lg:relative lg:shrink-0 lg:z-auto
+            
+            transition-all duration-300 ease-in-out border-r border-slate-800 bg-slate-900
             overflow-hidden whitespace-nowrap 
-            ${isOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full opacity-0'}
+            ${isOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:w-0 opacity-0'}
           `}
         >
           <ChatSidebar />
-        </div>
+        </aside>
 
-        {/* --- THE MAIN CONTENT --- */}
-        <div className="flex-1 flex flex-col min-w-0">
+        {/* --- 3. THE MAIN CONTENT --- */}
+        <main className="flex-1 flex flex-col min-w-0 relative">
            {children}
-        </div>
+        </main>
 
       </div>
     </SidebarContext.Provider>
