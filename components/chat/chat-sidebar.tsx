@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { useRouter, useParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { cn } from "@/lib/utils"
-
+import { useState} from 'react'
+import {Loader2 } from 'lucide-react'
 interface Chat {
   id: string
   file_name: string
@@ -19,6 +20,7 @@ export function ChatSidebar() {
   const queryClient = useQueryClient()
   const params = useParams()
   const currentChatId = params.id
+   const [isSigningOut, setIsSigningOut] = useState(false)
 
   const { data: chats = [], isLoading, isError } = useQuery({
     queryKey: ['chats'],
@@ -39,6 +41,7 @@ export function ChatSidebar() {
     staleTime: 1000 * 60 * 5 
   })
 
+
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.preventDefault() 
     if(!confirm("Delete this chat?")) return
@@ -58,6 +61,21 @@ export function ChatSidebar() {
         queryClient.setQueryData(['chats'], previousChats)
     }
   }
+
+ 
+
+// 2. Add the sign-out handler
+const handleSignOut = async () => {
+  try {
+    setIsSigningOut(true)
+    await supabase.auth.signOut()
+    router.push('/login') // Redirect after logout
+  } catch (error) {
+    console.error("Error signing out:", error)
+  } finally {
+    setIsSigningOut(false)
+  }
+}
 
   return (
     // THEME: bg-slate-900 (Slightly lighter than main bg-slate-950)
@@ -163,23 +181,46 @@ export function ChatSidebar() {
 
       {/* --- FOOTER: User Profile --- */}
       <div className="p-4 border-t border-slate-800/50 bg-slate-900/50 backdrop-blur-sm">
-         <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer group">
-            <div className="h-9 w-9 rounded-full bg-linear-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shadow-md ring-2 ring-slate-900 group-hover:ring-slate-800 transition-all">
+        <div className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-slate-800/50 transition-colors group/footer">
+          
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="h-9 w-9 shrink-0 rounded-full bg-linear-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shadow-md ring-2 ring-slate-900">
               US
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">User Account</span>
-              <div className="flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isError ? 'bg-red-400' : 'bg-emerald-400'}`}></span>
-                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isError ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
-                </span>
-                <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                  {isError ? 'Offline' : 'Online'}
-                </span>
-              </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-sm font-semibold text-slate-200 truncate">User Account</span>
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
+                {isError ? 'Offline' : 'Online'}
+              </span>
             </div>
-         </div>
+          </div>
+
+          {/* Sign Out Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-colors shrink-0"
+            title="Sign Out"
+          >
+            {isSigningOut ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="16" height="16" 
+                viewBox="0 0 24 24" fill="none" 
+                stroke="currentColor" strokeWidth="2" 
+                strokeLinecap="round" strokeLinejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   )
