@@ -7,6 +7,7 @@ import PDFViewer from '@/components/pdf-viewer'
 import ChatPage from '@/components/chat-page' 
 import { FileText, MessageSquare } from 'lucide-react'
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button";
 
 export default function Page() {
   const params = useParams()
@@ -14,7 +15,7 @@ export default function Page() {
   
   const [activeTab, setActiveTab] = useState<'chat' | 'pdf'>('chat')
   const { setPdfUrl } = usePDFStore()
-
+  const [isPdfOpen, setIsPdfOpen] = useState(false)
   // ---------------------------------------------------------
   // 1. FETCH FILENAME AND GENERATE URL
   // ---------------------------------------------------------
@@ -56,74 +57,56 @@ export default function Page() {
 
   // Helper: Switch tabs on mobile when citation is clicked
   const handleCitationClick = () => {
+    setIsPdfOpen(true)
     setActiveTab('pdf')
   }
 
   return (
-    <div className="flex h-screen flex-col bg-slate-950 text-slate-200 md:flex-row">
-      
-      {/* MOBILE TABS */}
-      <div className="flex h-12 shrink-0 items-center border-b border-slate-800 bg-slate-950 md:hidden">
-        <button
-          onClick={() => setActiveTab('chat')}
-          className={cn(
-            "flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors",
-            activeTab === 'chat' ? "border-blue-500 text-blue-500" : "border-transparent text-slate-400 hover:text-slate-200"
-          )}
-        >
-          <MessageSquare className="h-4 w-4" />
-          Chat
-        </button>
-        <button
-          onClick={() => setActiveTab('pdf')}
-          className={cn(
-            "flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors",
-            activeTab === 'pdf' ? "border-blue-500 text-blue-500" : "border-transparent text-slate-400 hover:text-slate-200"
-          )}
-        >
-          <FileText className="h-4 w-4" />
-          Document
-        </button>
-      </div>
+    <div className="flex h-screen w-full bg-slate-950 overflow-hidden relative">
+  
+  {/* BACKDROP: Only for Mobile (optional) - Removed the onClick so it won't close on click */}
+  {isPdfOpen && (
+    <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-[2px] z-40 lg:hidden" />
+  )}
 
-      {/* CONTENT */}
-  {/* CONTENT WRAPPER */}
-      <div className="flex flex-1 overflow-hidden relative">
+  <div className={cn(
+    "h-full flex-1 transition-all duration-500 ease-in-out z-10",
+    isPdfOpen ? "lg:mr-[40%]" : "mr-0" 
+  )}>
+    <ChatPage onCitationClick={handleCitationClick} />
+  </div>
+
+  <aside className={cn(
+    "fixed top-0 right-0 h-full bg-slate-900 border-l border-slate-800 shadow-2xl transition-transform duration-500 ease-in-out z-50",
+    "w-[90%] lg:w-[40%]", 
+    isPdfOpen ? "translate-x-0" : "translate-x-full"
+  )}>
         
-        {/* LEFT: CHAT (Primary Focus - 70%) */}
-        <div className={cn(
-          "h-full w-full md:w-[60%] transition-all duration-300 ease-in-out z-20",
-          activeTab === 'pdf' ? "hidden md:block" : "block"
-        )}>
-          <ChatPage onCitationClick={handleCitationClick} />
-        </div>
-
-        {/* RIGHT: PDF (Secondary Focus - 30%) */}
-        <div className={cn(
-          "h-full w-full md:w-[40%] bg-slate-900 flex flex-col transition-all duration-300 ease-in-out border-l border-slate-800",
-          activeTab === 'chat' ? "hidden md:flex" : "flex"
-        )}>
-          
-          {/* Subtle Aesthetic Header */}
-          <header className="flex h-12 shrink-0 items-center px-4 border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <div className="p-1 bg-blue-500/10 rounded">
-                <FileText className="h-3.5 w-3.5 text-blue-400" />
-              </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Document</span>
+        <header className="flex h-12 items-center justify-between px-4 border-b border-slate-800 bg-slate-900">
+          <div className="flex items-center gap-2">
+            <div className="p-1 bg-blue-500/10 rounded">
+              <FileText className="h-3.5 w-3.5 text-blue-400" />
             </div>
-          </header>
-
-          {/* PDF Frame: Adding padding makes it look like a physical sheet */}
-          <div className="flex-1 p-3 bg-slate-950/50 overflow-hidden">
-            <div className="h-full w-full rounded-xl overflow-hidden shadow-2xl ring-1 ring-slate-800 bg-white">
-              <PDFViewer />
-            </div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Reference</span>
           </div>
           
-        </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsPdfOpen(false)}
+            className="text-xs text-slate-500 hover:text-white h-8"
+          >
+            Close
+          </Button>
+        </header>
 
-      </div>
+        <div className="flex-1 h-[calc(100%-48px)] bg-slate-950 p-2">
+          <div className="h-full w-full rounded-lg overflow-hidden bg-white shadow-inner">
+            <PDFViewer />
+          </div>
+        </div>
+      </aside>
+
     </div>
   )
 }

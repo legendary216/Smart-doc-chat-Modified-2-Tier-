@@ -182,31 +182,38 @@ export default function ChatPage({ onCitationClick }: ChatPageProps) {
         </Button>
       </div> */}
 
-     <header className="sticky top-0 z-30 h-14 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md flex items-center px-4 transition-all">
-        <div className="w-full max-w-3xl mx-auto flex items-center gap-3">
+    <header className="sticky top-0 z-30 h-14 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md flex items-center transition-all">
+        {/* Full-width container to hold both ends */}
+        <div className="w-full flex items-center px-4">
           
-          {/* 1. THE MENU TOGGLE BUTTON (Now lives here) */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={toggle} 
-            className="text-slate-500 hover:text-white hover:bg-white/5 mr-1"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
+          {/* 1. FAR LEFT: The Menu Button (outside the centered flow) */}
+          <div className="flex shrink-0">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggle} 
+              className="text-slate-500 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </div>
 
-          {/* 2. THE FILE NAME */}
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex items-center gap-2 group cursor-default">
-              <div className="p-1.5 bg-blue-500/10 rounded-md border border-blue-500/20">
-                <FileText className="h-3.5 w-3.5 text-blue-400" />
+          {/* 2. CENTERED: The File Info (aligned with Chat flow) */}
+          <div className="flex-1 flex justify-center px-4">
+            <div className="w-full max-w-3xl flex items-center gap-3 overflow-hidden">
+              <div className="flex items-center gap-2 group cursor-default">
+                <div className="p-1.5 bg-blue-500/10 rounded-md border border-blue-500/20">
+                  <FileText className="h-3.5 w-3.5 text-blue-400" />
+                </div>
+                <h1 className="font-medium text-slate-200 truncate text-xs tracking-tight">
+                  {title}
+                </h1>
               </div>
-              <h1 className="font-medium text-slate-200 truncate text-xs tracking-tight">
-                {title}
-              </h1>
             </div>
           </div>
 
+          {/* 3. BALANCE: Invisible spacer to keep the center content perfectly centered */}
+          <div className="w-10 shrink-0 lg:block hidden" />
         </div>
       </header>
 
