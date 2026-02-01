@@ -6,16 +6,17 @@ import {
   MessageSquare,
   Trash2,
   AlertCircle,
-  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useRouter, useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useSidebar } from "../app-shell";
+import { User } from "@supabase/supabase-js"; // Import User type
+
 interface Chat {
   id: string;
   file_name: string;
@@ -28,7 +29,22 @@ export function ChatSidebar() {
   const params = useParams();
   const currentChatId = params.id;
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const { toggle, isOpen } = useSidebar();
+  
+  // --- NEW: State to store the current user details ---
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  const { toggle } = useSidebar();
+
+  // --- NEW: Fetch User Details on Mount ---
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUser(user);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const {
     data: chats = [],
@@ -76,12 +92,11 @@ export function ChatSidebar() {
     }
   };
 
-  // 2. Add the sign-out handler
   const handleSignOut = async () => {
     try {
       setIsSigningOut(true);
       await supabase.auth.signOut();
-      router.push("/login"); // Redirect after logout
+      router.push("/login"); 
     } catch (error) {
       console.error("Error signing out:", error);
     } finally {
@@ -89,10 +104,19 @@ export function ChatSidebar() {
     }
   };
 
+  // --- Helpers for Display Name & Avatar ---
+  const avatarUrl = currentUser?.user_metadata?.avatar_url;
+  const fullName = currentUser?.user_metadata?.full_name;
+  const email = currentUser?.email;
+  
+  // Fallback: If no name (email login), use the part before the @
+  const displayName = fullName || email?.split("@")[0] || "User";
+  // Fallback: First letter of name/email for the placeholder avatar
+  const initial = displayName[0]?.toUpperCase() || "U";
+
   return (
-    // THEME: bg-slate-900 (Slightly lighter than main bg-slate-950)
     <div className="w-full h-full bg-slate-900 flex flex-col font-sans border-r border-slate-800/50">
-      {/* --- HEADER: Primary Action --- */}
+      {/* --- HEADER --- */}
       <div className="p-4 pb-2">
         <Link href="/" className="block">
           <Button className="w-full justify-start gap-3 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 transition-all duration-200 py-6 text-sm font-semibold rounded-xl group">
@@ -107,7 +131,6 @@ export function ChatSidebar() {
       {/* --- NAVIGATION LIST --- */}
       <div className="flex-1 overflow-y-auto px-3 py-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
         <div className="space-y-2">
-          {/* Typography: Clean, Uppercase Header */}
           <div className="px-3 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">
             <span>History</span>
             <span className="bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded text-[10px]">
@@ -115,7 +138,6 @@ export function ChatSidebar() {
             </span>
           </div>
 
-          {/* Loading Skeletons */}
           {isLoading && (
             <div className="space-y-2 px-1">
               {[1, 2, 3].map((i) => (
@@ -127,7 +149,6 @@ export function ChatSidebar() {
             </div>
           )}
 
-          {/* Error State */}
           {isError && (
             <div className="px-3 py-3 mx-1 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
               <AlertCircle className="h-3 w-3" />
@@ -135,14 +156,12 @@ export function ChatSidebar() {
             </div>
           )}
 
-          {/* Empty State */}
           {!isLoading && chats.length === 0 && !isError && (
             <div className="px-4 py-8 text-center">
               <p className="text-slate-600 text-sm">No recent chats.</p>
             </div>
           )}
 
-          {/* Chat List Items */}
           <div className="space-y-1">
             {chats.map((chat) => {
               const isActive = chat.id === currentChatId;
@@ -152,20 +171,17 @@ export function ChatSidebar() {
                   key={chat.id}
                   href={`/chat/${chat.id}`}
                   onClick={() => {
-                    // Strategy: Only close automatically if we are on mobile
                     if (window.innerWidth < 1024) {
-                      // 1024px is the 'lg' breakpoint in Tailwind
                       toggle();
                     }
                   }}
                   className={cn(
                     "group relative flex items-center justify-between px-3 py-3 rounded-lg transition-all duration-200 text-sm font-medium",
                     isActive
-                      ? "bg-blue-500/10 text-blue-400" // Active: Tinted Blue
-                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200", // Inactive
+                      ? "bg-blue-500/10 text-blue-400"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200",
                   )}
                 >
-                  {/* Active Accent Bar (Left Edge) */}
                   {isActive && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-3px bg-blue-500 rounded-r-full shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
                   )}
@@ -203,16 +219,32 @@ export function ChatSidebar() {
         </div>
       </div>
 
-      {/* --- FOOTER: User Profile --- */}
+      {/* --- FOOTER: User Profile (UPDATED) --- */}
       <div className="p-4 border-t border-slate-800/50 bg-slate-900/50 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-slate-800/50 transition-colors group/footer">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="h-9 w-9 shrink-0 rounded-full bg-linear-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-xs font-bold shadow-md ring-2 ring-slate-900">
-              US
+            
+            {/* AVATAR LOGIC */}
+            <div className="h-9 w-9 shrink-0 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 overflow-hidden shadow-sm">
+              {avatarUrl ? (
+                // Google Image
+                <img 
+                  src={avatarUrl} 
+                  alt="User Avatar" 
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                // Fallback Initial (for Email users)
+                <div className="h-full w-full bg-linear-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+                  {initial}
+                </div>
+              )}
             </div>
+
+            {/* NAME / EMAIL LOGIC */}
             <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-semibold text-slate-200 truncate">
-                User Account
+              <span className="text-sm font-semibold text-slate-200 truncate max-w-120px" title={displayName}>
+                {displayName}
               </span>
               <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
                 {isError ? "Offline" : "Online"}
