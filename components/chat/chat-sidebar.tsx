@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useSidebar } from "../app-shell";
-import { User } from "@supabase/supabase-js"; // Import User type
+import { User } from "@supabase/supabase-js"; 
 
 interface Chat {
   id: string;
@@ -30,12 +30,10 @@ export function ChatSidebar() {
   const currentChatId = params.id;
   const [isSigningOut, setIsSigningOut] = useState(false);
   
-  // --- NEW: State to store the current user details ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const { toggle } = useSidebar();
 
-  // --- NEW: Fetch User Details on Mount ---
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -76,18 +74,39 @@ export function ChatSidebar() {
     e.preventDefault();
     if (!confirm("Delete this chat?")) return;
 
+    // Save previous state for rollback
     const previousChats = queryClient.getQueryData<Chat[]>(["chats"]);
+    
+    // Optimistically update UI
     queryClient.setQueryData(["chats"], (old: Chat[] = []) => {
       return old.filter((c) => c.id !== id);
     });
 
     try {
+      // 1. GET FILE NAME (We need this to delete from Storage)
+      const chatToDelete = chats.find(c => c.id === id);
+      
+      if (chatToDelete?.file_name) {
+          // 2. DELETE FROM STORAGE BUCKET
+          const { error: storageError } = await supabase.storage
+            .from('pdfs')
+            .remove([chatToDelete.file_name]);
+          
+          if (storageError) {
+             console.error("Storage delete warning:", storageError);
+             // We don't throw here, because we still want to delete the chat row
+          }
+      }
+
+      // 3. DELETE FROM DATABASE
       const { error } = await supabase.from("chats").delete().eq("id", id);
       if (error) throw error;
+      
       if (currentChatId === id) router.push("/");
     } catch (err) {
       console.error("Failed to delete chat:", err);
       alert("Could not delete chat. Please try again.");
+      // Rollback
       queryClient.setQueryData(["chats"], previousChats);
     }
   };
@@ -109,9 +128,7 @@ export function ChatSidebar() {
   const fullName = currentUser?.user_metadata?.full_name;
   const email = currentUser?.email;
   
-  // Fallback: If no name (email login), use the part before the @
   const displayName = fullName || email?.split("@")[0] || "User";
-  // Fallback: First letter of name/email for the placeholder avatar
   const initial = displayName[0]?.toUpperCase() || "U";
 
   return (

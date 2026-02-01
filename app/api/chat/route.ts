@@ -1,48 +1,48 @@
-import { google } from '@ai-sdk/google';
-import { streamText, convertToModelMessages, UIMessage } from 'ai';
-import { createClient } from '@supabase/supabase-js';
-import { searchContext } from '@/app/actions';
+import { google } from "@ai-sdk/google";
+import { streamText, convertToModelMessages, UIMessage } from "ai";
+import { createClient } from "@supabase/supabase-js";
+import { searchContext } from "@/app/actions";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
   // 1. Extract messages and chatId (sent via the body in frontend)
-  const { messages, chatId }: { messages: UIMessage[], chatId: string } = await req.json();
+  const { messages, chatId }: { messages: UIMessage[]; chatId: string } =
+    await req.json();
 
   // 2. Get the last user message text
   // Since messages now have 'parts', we extract the text part
   const lastMessage = messages[messages.length - 1];
   const lastUserText = lastMessage.parts
-    .filter(part => part.type === 'text')
-    .map(part => part.text)
-    .join('');
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
 
   // 3. RAG Search
   const contextResults = await searchContext(lastUserText, chatId);
-  const contextText = contextResults.map((c: any) => {
+  const contextText = contextResults
+    .map((c: any) => {
+      const cleanContent = c.content.replace(/#\d+:/g, "");
 
-    const cleanContent = c.content.replace(/#\d+:/g, ''); 
-    
-    // 2. Remove internal page references (e.g., "[Page 6]")
-    const superCleanContent = cleanContent.replace(/\[Page \d+\]/g, '');
+      // 2. Remove internal page references (e.g., "[Page 6]")
+      const superCleanContent = cleanContent.replace(/\[Page \d+\]/g, "");
 
-    return `[Source: Page ${c.page}]:\n${superCleanContent}`
-  }).join('\n\n---\n\n');
+      return `[Source: Page ${c.page}]:\n${superCleanContent}`;
+    })
+    .join("\n\n---\n\n");
 
+  console.log("context which goes to gemini : ", contextText);
 
-
-  console.log("context which goes to gemini : ",contextText);
-  
   // 4. Setup Supabase Admin
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
   // 5. Generate Stream
   const result = streamText({
-    model: google('gemini-2.5-flash-lite'),
-  system: `
+    model: google("gemini-2.5-flash-lite"),
+    system: `
       You are an expert analyst. Answer strictly from the CONTEXT below.
 
       INSTRUCTIONS:
@@ -51,26 +51,29 @@ export async function POST(req: Request) {
          - DERIVE "X" ONLY from the [Source: Page X] header.
          - IGNORE any other numbers inside the text.
       3. **Missing Info:** If the answer is not in the context, state "I cannot find this information."
-
+      ### 4. Synthesis & Comprehensive Coverage (CRITICAL)
+      - **Do not rely on a single chunk:** Even if the first chunk answers the question, you MUST check the other chunks for additional context (e.g., pathology, differential diagnosis, complications).
+      - **Combine Sources:** A high-quality response combines details from multiple pages. For example, if Page 5 defines a condition and Page 6 explains its pathology, your response should integrate both and cite both (e.g., "[Page 5, 6]").
+      - **Avoid Repetitive Lists:** Do not simply convert one chunk's bullet points into a list of sentences. Synthesize the narrative.
       CONTEXT:
       ${contextText}
     `,
     // Use the converter from your 'Stream Protocols' doc
     messages: await convertToModelMessages(messages),
-    
+
     // 6. Save to DB when finished
     onFinish: async ({ text }) => {
       try {
-        await supabaseAdmin.from('messages').insert({
+        await supabaseAdmin.from("messages").insert({
           chat_id: chatId,
-          role: 'user',
-          content: lastUserText
+          role: "user",
+          content: lastUserText,
         });
 
-        await supabaseAdmin.from('messages').insert({
+        await supabaseAdmin.from("messages").insert({
           chat_id: chatId,
-          role: 'assistant',
-          content: text
+          role: "assistant",
+          content: text,
         });
       } catch (e) {
         console.error("Failed to save messages:", e);

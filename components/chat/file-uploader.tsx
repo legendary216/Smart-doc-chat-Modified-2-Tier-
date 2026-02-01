@@ -9,11 +9,7 @@ import { saveDocument } from '@/lib/storage'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
-/**
- * References:
- * Tailwind Glassmorphism: https://tailwindcss.com/docs/backdrop-blur
- * React Dropzone: https://react-dropzone.js.org/
- */
+import { supabase } from '@/lib/supabase' // <--- Added Import
 
 export function FileUploader() {
   const [file, setFile] = useState<File | null>(null)
@@ -23,7 +19,7 @@ export function FileUploader() {
   
   const { user } = useAuthStore()
   const router = useRouter()
-const queryClient = useQueryClient()
+  const queryClient = useQueryClient()
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     try {
@@ -38,16 +34,36 @@ const queryClient = useQueryClient()
         setIsProcessing(true)
         setProgress(0)
 
-        setStatus("Reading file...")
+        // 1. UPLOAD TO SUPABASE STORAGE
+        setStatus("Uploading to Cloud...")
+        
+        // ⚠️ BUCKET NAME MUST BE 'pdfs'
+        const { error: uploadError } = await supabase.storage
+          .from('pdfs')
+          .upload(selectedFile.name, selectedFile, {
+            upsert: true // Overwrite if exists
+          })
+
+        if (uploadError) {
+          console.error("Storage Upload Error:", uploadError)
+          alert("Failed to upload file to storage. Check console.")
+          throw uploadError
+        }
+
+        // 2. PARSE FILE (Client Side)
+        setStatus("Reading file content...")
         const pages = await parseFile(selectedFile)
         
+        // 3. SAVE TO DATABASE & EMBED
         setStatus("Preparing AI...")
         const chatId = await saveDocument(selectedFile.name, pages, user.id, (current, total) => {
            const percentage = Math.round((current / total) * 100)
            setProgress(percentage)
            setStatus(`Processing Page ${current} of ${total}...`)
         })
-await queryClient.invalidateQueries({ queryKey: ['chats'] })
+
+        await queryClient.invalidateQueries({ queryKey: ['chats'] })
+        
         setStatus("Done! Redirecting...")
         setProgress(100)
         
@@ -61,7 +77,7 @@ await queryClient.invalidateQueries({ queryKey: ['chats'] })
       setFile(null)
       setIsProcessing(false)
     }
-  }, [user, router])
+  }, [user, router, queryClient])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
       onDrop,
@@ -98,8 +114,8 @@ await queryClient.invalidateQueries({ queryKey: ['chats'] })
                <div className={`
                  p-6 rounded-[2rem] transition-all duration-700 shadow-2xl border border-white/5
                  ${isDragActive 
-                    ? 'bg-blue-600 text-white shadow-blue-500/50 rotate-3' 
-                    : 'bg-slate-950/80 text-slate-400 group-hover:text-blue-400 group-hover:scale-110 group-hover:-rotate-3'
+                   ? 'bg-blue-600 text-white shadow-blue-500/50 rotate-3' 
+                   : 'bg-slate-950/80 text-slate-400 group-hover:text-blue-400 group-hover:scale-110 group-hover:-rotate-3'
                  }
                `}>
                  <CloudUpload className={`h-10 w-10 ${isDragActive ? 'animate-bounce' : 'animate-[pulse_4s_infinite]'}`} />
@@ -148,20 +164,20 @@ await queryClient.invalidateQueries({ queryKey: ['chats'] })
             {/* --- RECESSED PROGRESS BAR --- */}
             {isProcessing && (
               <div className="space-y-5">
-                 <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">
-                   <span className="flex items-center gap-2">
-                     <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping" />
-                     {status}
-                   </span>
-                   <span className="text-blue-400">{progress}%</span>
-                 </div>
-                 
-                 <div className="h-3 w-full bg-slate-950 rounded-full p-1 shadow-inner border border-white/5 overflow-hidden">
-                    <div 
-                      className="h-full bg-linear-to-r from-blue-600 via-cyan-400 to-blue-600 bg-size-[200%_auto] animate-[gradient_2s_linear_infinite] rounded-full transition-all duration-500 ease-out shadow-[0_0_20px_rgba(37,99,235,0.4)]"
-                      style={{ width: `${progress}%` }} 
-                    />
-                 </div>
+                  <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-[0.25em]">
+                    <span className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping" />
+                      {status}
+                    </span>
+                    <span className="text-blue-400">{progress}%</span>
+                  </div>
+                  
+                  <div className="h-3 w-full bg-slate-950 rounded-full p-1 shadow-inner border border-white/5 overflow-hidden">
+                     <div 
+                       className="h-full bg-linear-to-r from-blue-600 via-cyan-400 to-blue-600 bg-size-[200%_auto] animate-[gradient_2s_linear_infinite] rounded-full transition-all duration-500 ease-out shadow-[0_0_20px_rgba(37,99,235,0.4)]"
+                       style={{ width: `${progress}%` }} 
+                     />
+                  </div>
               </div>
             )}
 
