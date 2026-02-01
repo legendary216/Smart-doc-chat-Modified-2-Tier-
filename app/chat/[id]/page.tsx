@@ -26,6 +26,8 @@ const Typewriter = ({ content, speed, onComplete }: { content: string, speed: nu
       if (onComplete) onComplete();
       return;
     }
+
+
     const intervalId = setInterval(() => {
       setDisplayedContent((current) => {
         if (current.length >= content.length) {
@@ -36,6 +38,7 @@ const Typewriter = ({ content, speed, onComplete }: { content: string, speed: nu
         return content.slice(0, current.length + 1);
       });
     }, speed);
+    
     return () => clearInterval(intervalId);
   }, [content, speed, onComplete]);
 
