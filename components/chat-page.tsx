@@ -4,7 +4,7 @@ import { useChat } from '@ai-sdk/react';
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Send, Bot, Menu, FileText, User, Loader2 } from "lucide-react"; 
+import { Send, Bot, Menu, FileText, User, Loader2 ,AlertCircle} from "lucide-react"; 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
@@ -134,7 +134,18 @@ export default function ChatPage({
     },
   });
 
-  const { messages, sendMessage, status, setMessages } = useChat();
+  const { messages, sendMessage, status, setMessages, error } = useChat({
+  onError: (err) => {
+    try {
+      // Try to parse the error message in case it's the JSON string we sent
+      const errorObj = JSON.parse(err.message);
+      console.error("Parsed Error:", errorObj.error);
+    } catch (e) {
+      // Fallback if the error isn't JSON
+      console.error("Raw Error:", err.message);
+    }
+  }
+});
 
   useEffect(() => {
     if (status === 'streaming') setHasStreamed(true);
@@ -324,6 +335,28 @@ export default function ChatPage({
                   </div>
                   <span className="text-xs text-slate-500 font-medium tracking-widest uppercase">Thinking</span>
                </div>
+            </div>
+          )}
+          {error && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
+                <AlertCircle className="h-4 w-4 text-red-400" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-400">
+                    {error.message.includes('429') 
+                      ? "Gemini quota exhausted. Please wait a moment before trying again." 
+                      : "Something went wrong. Please check your connection."}
+                  </p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-red-400 hover:bg-red-500/10 h-8"
+                >
+                  Retry
+                </Button>
+              </div>
             </div>
           )}
           

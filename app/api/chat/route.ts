@@ -6,6 +6,8 @@ import { searchContext } from "@/app/actions";
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
+
+  try {
   // 1. Extract messages and chatId (sent via the body in frontend)
   const { messages, chatId }: { messages: UIMessage[]; chatId: string } =
     await req.json();
@@ -83,4 +85,22 @@ export async function POST(req: Request) {
 
   // 7. Return using the specific method for the UI SDK
   return result.toUIMessageStreamResponse();
+}
+
+catch (error: any) {
+  console.error("API Error:", error);
+
+  // WRONG: return new Response("Failed after...") 
+  // RIGHT:
+  return new Response(
+    JSON.stringify({ 
+      error: error.message || "An unexpected error occurred",
+      status: error.status || 500 
+    }), 
+    { 
+      status: error.status || 500,
+      headers: { 'Content-Type': 'application/json' } 
+    }
+  );
+}
 }
