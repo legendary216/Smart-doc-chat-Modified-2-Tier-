@@ -9,4 +9,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Create a single supabase client for interacting with your database
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey,{
+  auth: {
+    persistSession: true,      // Persist session in localStorage (default: true)
+    autoRefreshToken: true,   // Automatically refresh token (default: true)
+    
+  },
+})
