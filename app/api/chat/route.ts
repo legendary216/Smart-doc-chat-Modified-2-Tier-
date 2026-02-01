@@ -19,8 +19,20 @@ export async function POST(req: Request) {
 
   // 3. RAG Search
   const contextResults = await searchContext(lastUserText, chatId);
-  const contextText = contextResults.map((c: any) => c.content).join('\n\n');
+  const contextText = contextResults.map((c: any) => {
 
+    const cleanContent = c.content.replace(/#\d+:/g, ''); 
+    
+    // 2. Remove internal page references (e.g., "[Page 6]")
+    const superCleanContent = cleanContent.replace(/\[Page \d+\]/g, '');
+
+    return `[Source: Page ${c.page}]:\n${superCleanContent}`
+  }).join('\n\n---\n\n');
+
+
+
+  console.log("context which goes to gemini : ",contextText);
+  
   // 4. Setup Supabase Admin
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,14 +42,15 @@ export async function POST(req: Request) {
   // 5. Generate Stream
   const result = streamText({
     model: google('gemini-2.5-flash-lite'),
-    system: `
-      You are an intelligent document assistant. Your task is to answer the user's question based strictly on the provided context.
+  system: `
+      You are an expert analyst. Answer strictly from the CONTEXT below.
 
-      STRICT RULES:
-      1. Answer ONLY using the information from the CONTEXT block below.
-      2. If the answer is not in the context, state "I cannot find this information in the document."
-      3. CITATION RULE: You MUST cite the source page for every fact you mention. Use the format [Page X] at the end of the sentence.
-      4. Do not make up information.
+      INSTRUCTIONS:
+      1. **Be Detailed:** Explain "Why" and "How". Avoid short answers.
+      2. **Citations:** End every key statement with [Page X].
+         - DERIVE "X" ONLY from the [Source: Page X] header.
+         - IGNORE any other numbers inside the text.
+      3. **Missing Info:** If the answer is not in the context, state "I cannot find this information."
 
       CONTEXT:
       ${contextText}

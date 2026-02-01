@@ -23,7 +23,7 @@ const Typewriter = ({ content, speed, onComplete }: { content: string, speed: nu
   useEffect(() => {
     if (speed === 0) {
       setDisplayedContent(content);
-      if (onComplete) onComplete();
+      //if (onComplete) onComplete();
       return;
     }
 
@@ -32,7 +32,7 @@ const Typewriter = ({ content, speed, onComplete }: { content: string, speed: nu
       setDisplayedContent((current) => {
         if (current.length >= content.length) {
           clearInterval(intervalId);
-          if (onComplete) onComplete();
+          //if (onComplete) onComplete();
           return content;
         }
         return content.slice(0, current.length + 1);
@@ -40,8 +40,19 @@ const Typewriter = ({ content, speed, onComplete }: { content: string, speed: nu
     }, speed);
     
     return () => clearInterval(intervalId);
-  }, [content, speed, onComplete]);
+  }, [content, speed]);
 
+    useEffect(() => {
+    if (displayedContent === content && content !== "") {
+      // Use setTimeout to push this to the end of the event loop
+      // This prevents the "Update while rendering" error
+      const timer = setTimeout(() => {
+        onComplete?.();
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [displayedContent, content, onComplete]);
+  
   return <ReactMarkdown>{displayedContent}</ReactMarkdown>;
 };
 

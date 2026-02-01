@@ -56,7 +56,7 @@ export async function saveDocument(
       const page = pages[i]
       
       // A. Split the page into smaller chunks
-      const chunks = splitText(page.content);
+      const chunks = splitText(page.content,500,100);
 
       // B. Process each small chunk
       for (const chunkContent of chunks) {
