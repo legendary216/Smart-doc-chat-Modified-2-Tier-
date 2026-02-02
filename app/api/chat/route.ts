@@ -9,7 +9,7 @@ export async function POST(req: Request) {
 
   try {
   // 1. Extract messages and chatId (sent via the body in frontend)
-  const { messages, chatId }: { messages: UIMessage[]; chatId: string } =
+  const { messages, chatId ,modelId }: { messages: UIMessage[]; chatId: string,modelId: string } =
     await req.json();
 
   // 2. Get the last user message text
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
   // 5. Generate Stream
   const result = streamText({
-    model: google("gemini-2.5-flash-lite"),
+   model: google(modelId || "gemini-2.5-flash-lite"),
     system: `
       You are an expert analyst. Answer strictly from the CONTEXT below.
 

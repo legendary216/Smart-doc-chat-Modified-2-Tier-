@@ -18,6 +18,13 @@ interface DBMessage {
   content: string;
 }
 
+const MODELS = [
+  { id: "gemini-2.5-flash-lite", name: "gemini-2.5-flash-lite" },
+  { id: "gemini-3-pro-preview", name: "gemini-3-pro-preview" },
+  { id: "gemini-3-flash-preview", name: "gemini-3-flash-preview" },
+  { id: "gemini-2.5-pro", name: "gemini-2.5-pro" },
+  { id: "gemini-2.5-flash", name: "gemini-2.5-flash" },
+];
 // ----------------------------------------------------------------------
 // 1. HELPER: Process text to find [Page X] links
 // ----------------------------------------------------------------------
@@ -107,6 +114,7 @@ export default function ChatPage({
   const [input, setInput] = useState("");
   const [finishedTypingIds, setFinishedTypingIds] = useState<Set<string>>(new Set());
   const [hasStreamed, setHasStreamed] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
 
   // ZUSTAND STORE
   const { jumpToPage } = usePDFStore();
@@ -169,15 +177,20 @@ export default function ChatPage({
       scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, finishedTypingIds]);
-
-  const handleSend = async (e: React.SyntheticEvent) => {
+const handleSend = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     const currentInput = input;
     setInput(""); 
-    await sendMessage({ text: currentInput }, { body: { chatId } });
+    
+    // 3. Pass selectedModel to the body
+    await sendMessage({ text: currentInput }, { 
+      body: { 
+        chatId,
+        modelId: selectedModel // <--- Pass it here
+      } 
+    });
   };
-
   // --- HANDLER FOR CLICKING A PAGE LINK ---
   const handlePageLinkClick = (pageNumber: number) => {
     console.log("Jumping to page:", pageNumber);
@@ -221,6 +234,18 @@ export default function ChatPage({
         </h1>
       </div>
     </div>
+
+    <div className="flex items-center gap-2 mr-2">
+             <select 
+               value={selectedModel}
+               onChange={(e) => setSelectedModel(e.target.value)}
+               className="bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-bold uppercase tracking-widest rounded-md px-2 h-8 outline-none focus:border-blue-500/50 transition-all cursor-pointer"
+             >
+               {MODELS.map((m) => (
+                 <option key={m.id} value={m.id}>{m.name}</option>
+               ))}
+             </select>
+           </div>
 
     {/* RIGHT: NEW VIEW DOCUMENT BUTTON */}
     <div className="flex shrink-0">
