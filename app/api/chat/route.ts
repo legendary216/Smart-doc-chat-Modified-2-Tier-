@@ -52,6 +52,8 @@ export async function POST(req: Request) {
       2. **Citations:** End every key statement with [Page X].
          - DERIVE "X" ONLY from the [Source: Page X] header.
          - IGNORE any other numbers inside the text.
+         - Never write "Page X" without brackets.
+   - Always derive X from [Source: Page X].
       3. **Missing Info:** If the answer is not in the context, state "I cannot find this information."
       ### 4. Synthesis & Comprehensive Coverage (CRITICAL)
       - **Do not rely on a single chunk:** Even if the first chunk answers the question, you MUST check the other chunks for additional context (e.g., pathology, differential diagnosis, complications).
@@ -92,15 +94,16 @@ catch (error: any) {
 
   // WRONG: return new Response("Failed after...") 
   // RIGHT:
-  return new Response(
-    JSON.stringify({ 
-      error: error.message || "An unexpected error occurred",
-      status: error.status || 500 
-    }), 
-    { 
-      status: error.status || 500,
-      headers: { 'Content-Type': 'application/json' } 
-    }
-  );
+ const retryAfter = error.data?.error?.details?.find(
+  (d: any) => d['@type'] === 'type.googleapis.com/google.rpc.RetryInfo'
+)?.retryDelay;
+
+return new Response(
+  JSON.stringify({ 
+    error: "Quota exceeded", 
+    retryAfter: retryAfter || "60s" 
+  }), 
+  { status: 429 }
+);
 }
 }

@@ -25,35 +25,61 @@ const MODELS = [
   { id: "gemini-2.5-pro", name: "gemini-2.5-pro" },
   { id: "gemini-2.5-flash", name: "gemini-2.5-flash" },
 ];
+
+const renderContentWithCitations = (children: any, handlePageLinkClick: (page: number) => void) => {
+  if (Array.isArray(children)) {
+    return children.map((child, i) => {
+      if (typeof child === 'string') {
+        return <CitationRenderer key={i} text={child} onCitationClick={handlePageLinkClick} />;
+      }
+      return child;
+    });
+  }
+  if (typeof children === 'string') {
+    return <CitationRenderer text={children} onCitationClick={handlePageLinkClick} />;
+  }
+  return children;
+};
 // ----------------------------------------------------------------------
 // 1. HELPER: Process text to find [Page X] links
 // ----------------------------------------------------------------------
 const CitationRenderer = ({ text, onCitationClick }: { text: string, onCitationClick?: (page: number) => void }) => {
-  const parts = text.split(/(\[Page \d+\])/g);
+  // Finds blocks like "[Page 5, 6]" or "Page 5"
+  const parts = text.split(/(\[?Page\s+\d+(?:,\s*\d+)*\]?)/gi);
   
   return (
     <>
       {parts.map((part, i) => {
-        const match = part.match(/\[Page (\d+)\]/);
-        if (match) {
-          const pageNum = parseInt(match[1]);
-          return (
-            <button
-              key={i}
-              onClick={() => onCitationClick?.(pageNum)}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-1 text-xs font-medium text-blue-400 bg-blue-500/10 rounded hover:bg-blue-500/20 transition-colors cursor-pointer"
-            >
-              <FileText className="w-3 h-3" />
-              Page {pageNum}
-            </button>
-          );
+        // Check if this part is a citation block
+        const isCitation = /Page\s+\d+/i.test(part);
+        
+        if (isCitation) {
+          // Extract all digits from the string (e.g., "5" and "6")
+          const numbers = part.match(/\d+/g);
+          
+          if (numbers) {
+            return (
+              <span key={i} className="inline-flex items-center gap-1 mx-1">
+                {numbers.map((num, idx) => (
+                  <button
+                    key={`${i}-${idx}`}
+                    onClick={() => onCitationClick?.(parseInt(num))}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-blue-400 bg-blue-500/10 rounded border border-blue-500/20 hover:bg-blue-500/20 transition-all cursor-pointer"
+                  >
+                    <FileText className="w-3 h-3" />
+                    Page {num}
+                  </button>
+                ))}
+              </span>
+            );
+          }
         }
+        // If not a citation, return the plain text
         return part;
       })}
     </>
   );
 };
-
 
 // ----------------------------------------------------------------------
 // 2. TYPEWRITER COMPONENT (Kept exactly as you had it)
@@ -322,26 +348,29 @@ const handleSend = async (e: React.SyntheticEvent) => {
                             />
                           ) : (
                             <ReactMarkdown
-                                components={{
-                                    // Override paragraph to render our buttons
-                                    p: ({node, children}) => {
-                                        return <p className="mb-4">
-                                            {/* We iterate through children to find text nodes and replace [Page X] */}
-                                            {Array.isArray(children) 
-                                                ? children.map((child, i) => {
-                                                    if (typeof child === 'string') {
-                                                        return <CitationRenderer key={i} text={child} onCitationClick={handlePageLinkClick} />
-                                                    }
-                                                    return child;
-                                                })
-                                                : (typeof children === 'string' ? <CitationRenderer text={children} onCitationClick={handlePageLinkClick} /> : children)
-                                            }
-                                        </p>
-                                    }
-                                }}
-                            >
-                                {part.text}
-                            </ReactMarkdown>
+  components={{
+    // Paragraphs
+    p: ({ children }) => (
+      <p className="mb-4">
+        {renderContentWithCitations(children, handlePageLinkClick)}
+      </p>
+    ),
+    // List Items (Bullet Points)
+    li: ({ children }) => (
+      <li className="mb-2 text-slate-300">
+        {renderContentWithCitations(children, handlePageLinkClick)}
+      </li>
+    ),
+    // Optional: Bold text (in case citations are inside **[Page 1]**)
+    strong: ({ children }) => (
+      <strong className="font-bold text-white">
+        {renderContentWithCitations(children, handlePageLinkClick)}
+      </strong>
+    ),
+  }}
+>
+  {part.text}
+</ReactMarkdown>
                           )}
                         </div>
                       );
@@ -362,28 +391,28 @@ const handleSend = async (e: React.SyntheticEvent) => {
                </div>
             </div>
           )}
-          {error && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
-                <AlertCircle className="h-4 w-4 text-red-400" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-red-400">
-                    {error.message.includes('429') 
-                      ? "Gemini quota exhausted. Please wait a moment before trying again." 
-                      : "Something went wrong. Please check your connection."}
-                  </p>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => window.location.reload()}
-                  className="text-xs text-red-400 hover:bg-red-500/10 h-8"
-                >
-                  Retry
-                </Button>
-              </div>
-            </div>
-          )}
+         {error && (
+  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
+      <AlertCircle className="h-4 w-4 text-red-400" />
+      <div className="flex-1">
+        <p className="text-sm font-medium text-red-400">
+          {error.message.includes('429') || error.message.includes('quota')
+            ? `Gemini is resting. Please retry in ${error.message.includes('retryAfter') ? 'about a minute' : 'a few seconds'}. or change the model` 
+            : "Something went wrong. Please check your connection."}
+        </p>
+      </div>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={() => window.location.reload()}
+        className="text-xs text-red-400 hover:bg-red-500/10 h-8"
+      >
+        Retry
+      </Button>
+    </div>
+  </div>
+)}
           
           <div ref={scrollRef} className="h-20 w-full" />
         </div>
